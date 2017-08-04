@@ -1,5 +1,6 @@
 *.txt
 *.event
+*.json
 
 # Created by https://www.gitignore.io/api/linux,windows,osx,eclipse,python
 
