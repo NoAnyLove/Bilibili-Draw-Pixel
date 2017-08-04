@@ -54,25 +54,28 @@ def thread_main(user_id, user_cmd, task_queue, total, up):
 
             # sometimes failed to get json
             try:
+                status = None
                 status = json.loads(output)
+                wait_time = status['data']['time']
+                status_code = status['code']
             except Exception:
-                print("[%d/%d] @%s, <%s> failed to draw (%d, %d)" %
-                      (index, total, datetime.now(), user_id, x, y))
+                print("[%d/%d] @%s, <%s> failed to draw (%d, %d), wrong JSON"
+                      " response: %s" %
+                      (index, total, datetime.now(), user_id, x, y, status))
                 continue
 
-            wait_time = status['data']['time']
-            if status['code'] == 0:
+            if status_code == 0:
                 print("[%d/%d] @%s, <%s> draw (%d, %d) with %s, status: %d,"
                       " cost %.2fs" %
                       (index, total, datetime.now(), user_id,
-                       x, y, color, status['code'], cost_time))
+                       x, y, color, status_code, cost_time))
                 task_queue.task_done()
                 break
             else:
                 print("[%d/%d] @%s, <%s> draw (%d, %d), status: %d, "
                       "retry after %ds, cost %.2fs"
                       % (index, total, datetime.now(), user_id, x, y,
-                          status['code'], wait_time, cost_time))
+                          status_code, wait_time, cost_time))
                 time.sleep(wait_time)
 
         # sleep for cool-down interval
