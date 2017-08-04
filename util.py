@@ -39,7 +39,7 @@ def missing_color(rgb_hex):
         rgb_hex = missing_color_table[rgb_hex]
     except KeyError:
         # TODO: currently just set it to black, need improvement
-        rgb_hex = "#000000"
+        raise ValueError("Cannot process missing color %s" % rgb_hex)
     return rgb_hex
 
 
@@ -86,3 +86,13 @@ def find_nearest_color(r, g, b):
     lab_color = rgb_to_lab(r, g, b)
     nearest_lab = min(lab_map.keys(), key=lambda x: dist(lab_color, x))
     return lab_map[nearest_lab]
+
+
+def process_task_missing_color(tasks):
+    """in-place tasks processing, convert missing colors to available colors
+    """
+    for i in xrange(len(tasks)):
+        x, y, rgb_hex = tasks[i]
+        if rgb_hex not in color_map:
+            rgb_hex = missing_color(rgb_hex)
+            tasks[i] = (x, y, rgb_hex)

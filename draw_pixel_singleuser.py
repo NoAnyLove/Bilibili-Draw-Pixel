@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 import sys
 from update_image import UpdateImage
-from util import rgb_to_hex, rgb_hex_to_color_code
+from util import rgb_to_hex, rgb_hex_to_color_code, process_task_missing_color
 
 
 def draw_pixel(cmd_template, x, y, rgb_hex):
@@ -146,6 +146,9 @@ if __name__ == "__main__":
 
     with open(tasks_filename, "r") as fp:
         tasks = json.load(fp)
+
+    # convert missing colors to available colors
+    process_task_missing_color(tasks)
 
     if user_filename is not None:
         with open(user_filename, "r") as fp:

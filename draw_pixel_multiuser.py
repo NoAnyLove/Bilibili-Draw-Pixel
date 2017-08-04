@@ -7,7 +7,7 @@ import sys
 import Queue
 import threading
 from update_image import UpdateImage
-from util import rgb_hex_to_color_code, rgb_to_hex
+from util import rgb_hex_to_color_code, rgb_to_hex, process_task_missing_color
 
 
 def draw_pixel(cmd_template, x, y, rgb_hex):
@@ -108,6 +108,9 @@ if __name__ == "__main__":
 
     with open(tasks_filename, "r") as fp:
         tasks = json.load(fp)
+
+    # convert missing colors to available colors
+    process_task_missing_color(tasks)
 
     total_task = len(tasks)
     task_queue = Queue.Queue()
