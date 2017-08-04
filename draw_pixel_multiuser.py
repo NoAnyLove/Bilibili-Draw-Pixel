@@ -39,7 +39,7 @@ def thread_main(user_id, user_cmd, task_queue, total, up):
         index, (x, y, color) = task_queue.get()
         while True:
             # check if it is already the correct color
-            cur_rgb = up.get_image_pixel(x, y)
+            cur_rgb = up.get_image_pixel_sync(x, y)
             cur_rgb_hex = rgb_to_hex(*cur_rgb)
             wait_time = -1
             if cur_rgb_hex == color:

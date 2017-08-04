@@ -77,11 +77,23 @@ class UpdateImage(object):
 
     def get_image_pixel(self, x, y):
         index = y * self.width + x
-        with self.sync_lock:
-            r = self.image_buffer[index * 3]
-            g = self.image_buffer[index * 3 + 1]
-            b = self.image_buffer[index * 3 + 2]
+        r = self.image_buffer[index * 3]
+        g = self.image_buffer[index * 3 + 1]
+        b = self.image_buffer[index * 3 + 2]
         return (r, g, b)
+
+    def get_image_pixel_sync(self, x, y):
+        with self.sync_lock:
+            return self.get_image_pixel(x, y)
+
+    def set_image_pixel(self, x, y, rgb):
+        index = y * self.width + x
+        self.image_buffer[index * 3] = rgb[0]
+        self.image_buffer[index * 3 + 1] = rgb[1]
+        self.image_buffer[index * 3 + 2] = rgb[2]
+
+    def set_image_pixel_sync(self, x, y, rgb):
+        raise NotImplemented
 
     def save_buffer_to_file(self, filename):
         img = Image.frombytes("RGB", (1280, 720), bytes(self.image_buffer))
@@ -98,6 +110,11 @@ class UpdateImage(object):
         thread.start()
         self.thread = thread
         return thread
+
+    def get_task(self, func):
+        with self.sync_lock:
+            task = func(self)
+        return task
 
 
 def convert_code_to_bytes(code_map, code_data, buf):

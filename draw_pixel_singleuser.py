@@ -40,7 +40,7 @@ def process_cmd_template(cmd_template):
 #     for index, (x, y, color) in enumerate(tasks, 1):
 #         while True:
 #             # check if it is already the correct color
-#             cur_rgb = up.get_image_pixel(x, y)
+#             cur_rgb = up.get_image_pixel_sync(x, y)
 #             cur_rgb_hex = rgb_to_hex(*cur_rgb)
 #             wait_time = -1
 #             if cur_rgb_hex == color:
@@ -81,7 +81,7 @@ def thread_main(user_id, user_cmd, tasks, total, up):
     for index, (x, y, color) in enumerate(tasks, 1):
         while True:
             # check if it is already the correct color
-            cur_rgb = up.get_image_pixel(x, y)
+            cur_rgb = up.get_image_pixel_sync(x, y)
             cur_rgb_hex = rgb_to_hex(*cur_rgb)
             wait_time = -1
             if cur_rgb_hex == color:
