@@ -49,7 +49,10 @@ def thread_main(user_id, user_cmd, tasks, up):
     find_func = functools.partial(find_a_polluted_pixel, tasks)
     while True:
         up.update_image()
+        start_time = time.time()
         task = up.get_task(find_func)
+        print("<%s> up.get_task returns in %.2f" %
+              (user_id, time.time() - start_time))
         if task is not None:
             x, y, rgb_hex = task
         else:
