@@ -137,16 +137,6 @@ if __name__ == "__main__":
             thread.start()
             thread_list.append(thread)
 
-    # keep responsiveness
-#     for thread in thread_list:
-#         while True:
-#             try:
-#                 if not thread.is_alive():
-#                     break
-#                 thread.join(1)
-#             except KeyboardInterrupt:
-#                 print("Ctrl-c pressed, exiting")
-#                 sys.exit()
     while True:
         try:
             time.sleep(1)

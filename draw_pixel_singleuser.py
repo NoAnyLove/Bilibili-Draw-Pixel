@@ -30,51 +30,6 @@ def process_cmd_template(cmd_template):
     return cmd_template
 
 
-# def thread_main(user_cmd, tasks):
-#     print("start working")
-#     up = update_image.UpdateImage()
-#     up.update_image(True)
-#     # make sure template string is correct
-#     cmd_template = process_cmd_template(user_cmd)
-#     total = len(tasks)
-#     for index, (x, y, color) in enumerate(tasks, 1):
-#         while True:
-#             # check if it is already the correct color
-#             cur_rgb = up.get_image_pixel_sync(x, y)
-#             cur_rgb_hex = rgb_to_hex(*cur_rgb)
-#             wait_time = -1
-#             if cur_rgb_hex == color:
-#                 print("[%d/%d] @%s, skip correct pixel (%d, %d)" %
-#                       (index, total, datetime.now(), x, y))
-#                 break
-#
-#             output = draw_pixel(cmd_template, x, y, color)
-#             status = json.loads(output)
-#             wait_time = status['data']['time']
-#             if status['code'] == 0:
-#                 print("[%d/%d] @%s, draw (%d, %d) with %s, status: %d" %
-#                       (index, total, datetime.now(), x, y, color,
-#                        status['code']))
-#                 break
-#             else:
-#                 print("[%d/%d] @%s, draw (%d, %d), status: %d, retry after %ds"
-#                       % (index, total, datetime.now(), x, y,
-#                           status['code'], wait_time))
-#                 time.sleep(wait_time)
-#
-#         # sleep for cool-down interval
-#         time_span = 10
-#         if wait_time > time_span:
-#             time.sleep(wait_time - time_span)
-#             start_time = time.time()
-#             up.update_image(True)
-#             end_time = time.time()
-#             print("update image in %.2fs" % (end_time - start_time))
-#             if end_time - start_time < time_span:
-#                 time.sleep(time_span - (end_time - start_time))
-#         elif wait_time > 0:
-#             time.sleep(wait_time)
-
 def thread_main(user_id, user_cmd, tasks, total, up):
     print("%s start working" % user_id)
     cmd_template = process_cmd_template(user_cmd)
