@@ -66,6 +66,7 @@ class UpdateImage(object):
 
     def lazy_update_image(self, auto_save=False):
         ret = -1
+        start_time = time.time()
         with self.sync_lock:
             if self.last_update is None:
                 self.update_image(auto_save)
@@ -73,6 +74,13 @@ class UpdateImage(object):
                 self.update_image(auto_save)
             else:
                 ret = self.last_update
+        end_time = time.time()
+        if ret == -1:
+            print("update image in %.2fs" %
+                  (end_time - start_time))
+        else:
+            print("lazily updated %.2fs before" %
+                  (end_time - ret))
         return ret
 
     def get_image_pixel(self, x, y):

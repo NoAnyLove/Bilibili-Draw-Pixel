@@ -35,9 +35,12 @@ def process_cmd_template(cmd_template):
 def thread_main(user_id, user_cmd, task_queue, total, up):
     print("%s start working" % user_id)
     cmd_template = process_cmd_template(user_cmd)
+    wait_time = -1
     while True:
         index, (x, y, color) = task_queue.get()
+
         while True:
+
             # check if it is already the correct color
             cur_rgb = up.get_image_pixel_sync(x, y)
             cur_rgb_hex = rgb_to_hex(*cur_rgb)
@@ -70,32 +73,17 @@ def thread_main(user_id, user_cmd, task_queue, total, up):
                       (index, total, datetime.now(), user_id,
                        x, y, color, status_code, cost_time))
                 task_queue.task_done()
-                break
             else:
                 print("[%d/%d] @%s, <%s> draw (%d, %d), status: %d, "
                       "retry after %ds, cost %.2fs"
                       % (index, total, datetime.now(), user_id, x, y,
                           status_code, wait_time, cost_time))
+
+            # sleep for cool-down time
+            if wait_time > 0:
                 time.sleep(wait_time)
-
-        # sleep for cool-down interval
-        time_span = 10
-        if wait_time > time_span:
-            time.sleep(wait_time - time_span)
-            start_time = time.time()
-            ret = up.lazy_update_image()
-            end_time = time.time()
-            if ret == -1:
-                print("<%s> update image in %.2fs" %
-                      (user_id, end_time - start_time))
-            else:
-                print("<%s> lazily updated %.2fs before" %
-                      (user_id, end_time - ret))
-
-            if end_time - start_time < time_span:
-                time.sleep(time_span - (end_time - start_time))
-        elif wait_time > 0:
-            time.sleep(wait_time)
+                # update image in case it wait for too long
+                up.lazy_update_image()
 
 
 if __name__ == "__main__":
