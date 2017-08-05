@@ -30,6 +30,8 @@ class UpdateImage(object):
         return self.filename_template.format(datetime.now())
 
     def update_image(self, auto_save=False):
+        """ Avoid invoking this method in different threads
+        """
         print("Downloading %s" % url)
         try:
             r = requests.get(url, timeout=self.timeout)
@@ -67,10 +69,15 @@ class UpdateImage(object):
     def lazy_update_image(self, auto_save=False):
         ret = -1
         start_time = time.time()
+        # enter critical section
         with self.sync_lock:
             if self.last_update is None:
                 self.update_image(auto_save)
             elif time.time() > self.last_update + self.lazy_threshold:
+                # Since we use RLock, the whole process of calling
+                # up.update_image from this place is still inside the critical
+                # section. It is not possible that two threads calling
+                # up.update_image from lazy_update_image simultaneously
                 self.update_image(auto_save)
             else:
                 ret = self.last_update

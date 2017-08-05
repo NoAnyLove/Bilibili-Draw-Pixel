@@ -1,22 +1,10 @@
-import subprocess
 import time
 import json
 import re
 from datetime import datetime
 import sys
 from update_image import UpdateImage
-from util import rgb_to_hex, rgb_hex_to_color_code, process_task_missing_color
-
-
-def draw_pixel(cmd_template, x, y, rgb_hex):
-    color_code = rgb_hex_to_color_code(rgb_hex)
-    try:
-        start_time = time.time()
-        output = subprocess.check_output(cmd_template.format(
-            **{'x': x, 'y': y, 'color': color_code}), shell=True)
-    except Exception:
-        output = ''
-    return output, time.time() - start_time
+from util import rgb_to_hex, process_task_missing_color, draw_pixel
 
 
 def process_cmd_template(cmd_template):
