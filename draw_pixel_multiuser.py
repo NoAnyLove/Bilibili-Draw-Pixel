@@ -76,7 +76,7 @@ def thread_main(user_id, user_cmd, task_queue, total, up):
                       "retry after %ds, cost %.2fs"
                       % (index, total, datetime.now(), user_id, x, y,
                           status_code, wait_time, cost_time))
-                # time.sleep(wait_time)
+                time.sleep(wait_time)
 
         # sleep for cool-down interval
         time_span = 10
