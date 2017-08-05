@@ -103,6 +103,9 @@ if __name__ == "__main__":
     count = 1
     with open(user_filename, "r") as fp:
         for user_cmd in fp:
+            # Skip comments
+            if user_cmd.startswith('#'):
+                continue
             # Skip empty line
             user_cmd = user_cmd.strip()
             if not user_cmd:
@@ -116,6 +119,8 @@ if __name__ == "__main__":
             thread.daemon = True
             thread.start()
             thread_list.append(thread)
+
+    print('[INFO] loaded %d accounts' % (count - 1))
 
     # run forever, until Ctrl+C is pressed
     while True:
