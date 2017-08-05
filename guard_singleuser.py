@@ -4,7 +4,8 @@ import re
 from datetime import datetime
 import sys
 from update_image import UpdateImage
-from util import hex_to_rgb,  process_task_missing_color, draw_pixel
+from util import hex_to_rgb,  process_task_missing_color, \
+    draw_pixel_with_requests, extract_cookies
 import functools
 
 
@@ -33,7 +34,8 @@ def find_a_polluted_pixel(tasks, up):
 def thread_main(user_id, user_cmd, tasks, up):
     print("%s start working" % user_id)
     interval = 60
-    cmd_template = process_cmd_template(user_cmd)
+    # cmd_template = process_cmd_template(user_cmd)
+    user_cookies = extract_cookies(user_cmd)
     find_func = functools.partial(find_a_polluted_pixel, tasks)
     while True:
         up.update_image()
@@ -51,7 +53,8 @@ def thread_main(user_id, user_cmd, tasks, up):
 
         print("<%s> start to draw (%d, %d)" % (user_id, x, y))
         # output may be an empty string
-        output, cost_time = draw_pixel(cmd_template, x, y, rgb_hex)
+        output, cost_time = draw_pixel_with_requests(
+            user_cookies, x, y, rgb_hex)
 
         # sometimes failed to get json
         try:

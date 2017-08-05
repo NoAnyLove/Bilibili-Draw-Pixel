@@ -6,7 +6,8 @@ import sys
 import Queue
 import threading
 from update_image import UpdateImage
-from util import rgb_to_hex,     process_task_missing_color, draw_pixel
+from util import rgb_to_hex, process_task_missing_color, \
+    draw_pixel_with_requests, extract_cookies
 
 
 def process_cmd_template(cmd_template):
@@ -22,7 +23,8 @@ def process_cmd_template(cmd_template):
 
 def thread_main(user_id, user_cmd, task_queue, total, up):
     print("%s start working" % user_id)
-    cmd_template = process_cmd_template(user_cmd)
+    # cmd_template = process_cmd_template(user_cmd)
+    user_cookies = extract_cookies(user_cmd)
     wait_time = -1
     while True:
         index, (x, y, color) = task_queue.get()
@@ -41,7 +43,8 @@ def thread_main(user_id, user_cmd, task_queue, total, up):
 
             # output may be an empty string
             print("<%s> start to draw (%d, %d)" % (user_id, x, y))
-            output, cost_time = draw_pixel(cmd_template, x, y, color)
+            output, cost_time = draw_pixel_with_requests(
+                user_cookies, x, y, color)
 
             # sometimes failed to get json
             try:
