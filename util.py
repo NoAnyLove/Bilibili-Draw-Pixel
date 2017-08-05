@@ -1,5 +1,8 @@
 import time
 import subprocess
+import re
+import requests
+import collections
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
 
@@ -108,4 +111,47 @@ def draw_pixel(cmd_template, x, y, rgb_hex):
             **{'x': x, 'y': y, 'color': color_code}), shell=True)
     except Exception:
         output = ''
+    return output, time.time() - start_time
+
+
+fake_request_header = request_header = {
+    'user-agent': r'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit'
+    '/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36',
+    'Origin': r'http://live.bilibili.com',
+    'Referer': r'http://live.bilibili.com/pages/1702/pixel-drawing'
+}
+
+post_url = r'http://api.live.bilibili.com/activity/v1/SummerDraw/draw'
+cookie_pattern = r"-H 'Cookie: ([^']+)'"
+
+
+def extract_cookies(cmd_template):
+    cookies = dict()
+    match = re.search(cookie_pattern, cmd_template)
+    if match is None:
+        return None
+    cookies_str = match.group(1)
+    for field in cookies_str.split('; '):
+        key, value = field.split('=')
+        cookies[key] = value
+    return cookies
+
+
+def draw_pixel_with_requests(cookies, x, y, rgb_hex):
+    assert isinstance(cookies, collections.Mapping), 'cookies is not dict'
+    color_code = rgb_hex_to_color_code(rgb_hex)
+    payload = dict(x_min=x, y_min=y, x_max=x, y_max=y, color=color_code)
+    output = ''
+    try:
+        start_time = time.time()
+        r = requests.post(post_url, data=payload, cookies=cookies,
+                          headers=fake_request_header, timeout=60)
+        output = r.content
+    except requests.ConnectionError:
+        print("draw_pixel: Failed to connect to Bilibili.com")
+    except requests.ConnectTimeout:
+        print("draw_pixel: Connection timeout")
+    except Exception as e:
+        print("draw_pixel: error occurs %s" % e)
+
     return output, time.time() - start_time
