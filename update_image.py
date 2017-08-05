@@ -41,12 +41,21 @@ class UpdateImage(object):
         except requests.ConnectTimeout:
             print("Connection timeout, failed to update image")
             return
+        except Exception as e:
+            print("Error occurs: %s" % e)
+            return
         try:
             data = r.json()
             code_data = data["data"]["bitmap"]
         except Exception as e:
             print("Failed to update image with error: %s" % e)
             return
+
+        if not isinstance(code_data, basestring):
+            print("Incorrect code data: %s" % code_data)
+            return
+        if len(code_data) != 1280 * 720:
+            print("Code data length mismatch: %d" % len(code_data))
 
         print("Enter critical section: update image date")
         # thread synchronization
