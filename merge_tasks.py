@@ -6,6 +6,7 @@ import collections
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', dest='files', nargs='+', required=True)
+    parser.add_argument('-r', dest='remove_tasks', nargs='+')
     parser.add_argument('-o', dest='output', required=True)
 
     group = parser.add_mutually_exclusive_group()
@@ -34,8 +35,29 @@ if __name__ == "__main__":
         except Exception as e:
             print("Error occurs when reading file %s: %s" % (filename, e))
 
-    tasks = [(xy[0], xy[1], rgb_hex)
-             for xy, rgb_hex in tasks_order_dict.items()]
+    exclude_set = set()
+    for filename in args.remove_tasks:
+        try:
+            with open(filename, 'r') as fp:
+                tasks_subset = json.load(fp)
+                # add (x, y) coordinates to exclude_set
+                exclude_set.update({(task[0], task[1])
+                                    for task in tasks_subset})
+
+        except IOError as e:
+            print("Cannot open file %s with error: %s" % (filename, e))
+        except ValueError as e:
+            print("Failed to decode JSON: %s" % e)
+        except Exception as e:
+            print("Error occurs when reading file %s: %s" % (filename, e))
+
+    if exclude_set:
+        tasks = [(xy[0], xy[1], rgb_hex)
+                 for xy, rgb_hex in tasks_order_dict.items()
+                 if xy not in exclude_set]
+    else:
+        tasks = [(xy[0], xy[1], rgb_hex)
+                 for xy, rgb_hex in tasks_order_dict.items()]
 
     sort_func = None
     if args.sort_by_y:
