@@ -38,7 +38,6 @@ def thread_main(user_id, user_cmd, task_queue, total, up):
             if cur_rgb_hex == color:
                 print("[%d/%d] @%s, <%s> skip correct pixel (%d, %d)" %
                       (index, total, datetime.now(), user_id, x, y))
-                task_queue.task_done()
                 break
 
             # output may be an empty string
@@ -63,7 +62,6 @@ def thread_main(user_id, user_cmd, task_queue, total, up):
                       " cost %.2fs" %
                       (index, total, datetime.now(), user_id,
                        x, y, color, status_code, cost_time))
-                task_queue.task_done()
             else:
                 print("[%d/%d] @%s, <%s> draw (%d, %d), status: %d, "
                       "retry after %ds, cost %.2fs"
