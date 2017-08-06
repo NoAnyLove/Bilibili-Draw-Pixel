@@ -56,5 +56,6 @@ if __name__ == "__main__":
     try:
         with open(args.output, "w") as fp:
             json.dump(tasks, fp)
+        print("Writing %d tasks to %s" % (len(tasks), args.output))
     except IOError as e:
         print("Failed to write to output file %s: %s" % (args.output, e))

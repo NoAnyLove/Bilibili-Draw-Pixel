@@ -22,6 +22,7 @@ def process_cmd_template(cmd_template):
 
 
 def thread_main(user_id, user_cmd, task_queue, total, up):
+    time.sleep(3)
     print("%s start working" % user_id)
     # cmd_template = process_cmd_template(user_cmd)
     user_cookies = extract_cookies(user_cmd)

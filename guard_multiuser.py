@@ -1,6 +1,7 @@
 import time
 import json
 import re
+import random
 from datetime import datetime
 import sys
 from update_image import UpdateImage
@@ -33,6 +34,8 @@ def find_a_polluted_pixel(tasks, up):
 
 
 def thread_main(user_id, user_cmd, tasks, up):
+    # improve the thread output at the beginning
+    time.sleep(3 + random.random())
     print("%s start working" % user_id)
     interval = 60
     # cmd_template = process_cmd_template(user_cmd)
