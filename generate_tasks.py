@@ -1,5 +1,6 @@
 import json
 import argparse
+import sys
 from PIL import Image
 from util import rgb_to_hex
 
@@ -9,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument('--ref', dest='reference_filename',
                         default="reference.gif")
     parser.add_argument('-o', dest='output_filename',
-                        default="tasks.json")
+                        required=True)
     parser.add_argument('--rect', nargs=4, type=int,
                         metavar=('left', 'top', 'right', 'bottom'))
     parser.add_argument('--pattern', dest='pattern_filename')
@@ -52,5 +53,14 @@ if __name__ == "__main__":
                 # print(x, y, rgb_to_hex(r, g, b))
                 tasks.append((x, y, rgb_to_hex(r, g, b)))
 
-    with open(args.output_filename, "w") as fp:
-        json.dump(tasks, fp)
+    if not tasks:
+        print("No task was generated")
+        sys.exit()
+
+    try:
+        with open(args.output_filename, "w") as fp:
+            json.dump(tasks, fp)
+        print("Write tasks to %s" % args.output_filename)
+    except IOError as e:
+        print("Failed to write tasks to %s, with error: " %
+              (args.output_filename, e))
