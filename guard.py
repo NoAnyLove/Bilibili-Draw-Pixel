@@ -1,6 +1,5 @@
 import time
 import json
-import re
 import random
 from datetime import datetime
 import sys
@@ -9,17 +8,6 @@ from util import hex_to_rgb, process_task_missing_color, \
     draw_pixel_with_requests, extract_cookies
 import functools
 import threading
-
-
-def process_cmd_template(cmd_template):
-    pattern = r"--data '.+'"
-    tp = r"--data 'x_min={x}&y_min={y}&x_max={x}&y_max={y}&color={color}'"
-    cmd_template = re.sub(pattern, tp, cmd_template)
-
-    pattern = r"curl '"
-    tp = r"curl -s '"
-    cmd_template = re.sub(pattern, tp, cmd_template)
-    return cmd_template
 
 
 def find_a_polluted_pixel(tasks, up):

@@ -1,6 +1,5 @@
 import time
 import json
-import re
 from datetime import datetime
 import sys
 import Queue
@@ -8,17 +7,6 @@ import threading
 from update_image import UpdateImage
 from util import rgb_to_hex, process_task_missing_color, \
     draw_pixel_with_requests, extract_cookies
-
-
-def process_cmd_template(cmd_template):
-    pattern = r"--data '.+'"
-    tp = r"--data 'x_min={x}&y_min={y}&x_max={x}&y_max={y}&color={color}'"
-    cmd_template = re.sub(pattern, tp, cmd_template)
-
-    pattern = r"curl '"
-    tp = r"curl -s '"
-    cmd_template = re.sub(pattern, tp, cmd_template)
-    return cmd_template
 
 
 def thread_main(user_id, user_cmd, task_queue, total, up):
