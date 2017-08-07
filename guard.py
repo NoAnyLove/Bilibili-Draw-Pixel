@@ -21,7 +21,7 @@ def find_a_polluted_pixel(tasks, up):
     return None
 
 
-def thread_main(user_id, user_cmd, tasks, up):
+def thread_main(user_id, user_cmd, tasks, up, use_incremental_update):
     # improve the thread output at the beginning
     time.sleep(3 + random.random())
     print("%s start working" % user_id)
@@ -30,7 +30,9 @@ def thread_main(user_id, user_cmd, tasks, up):
     user_cookies = extract_cookies(user_cmd)
     find_func = functools.partial(find_a_polluted_pixel, tasks)
     while True:
-        up.lazy_update_image()
+        if not use_incremental_update:
+            up.lazy_update_image()
+
         start_time = time.time()
         task = up.get_task(find_func)
         print("<%s> up.get_task returns in %.2f" %
@@ -89,7 +91,11 @@ if __name__ == "__main__":
     # convert missing colors to available colors
     process_task_missing_color(tasks)
 
+    # TODO: flag
+    use_incremental_update = True
     up = UpdateImage()
+    if use_incremental_update:
+        up.update_image_with_incremental_update()
     thread_list = []
     count = 1
     with open(user_filename, "r") as fp:
@@ -106,7 +112,7 @@ if __name__ == "__main__":
             count += 1
             thread = threading.Thread(
                 target=thread_main,
-                args=(user_id, user_cmd, tasks, up))
+                args=(user_id, user_cmd, tasks, up, use_incremental_update))
             thread.daemon = True
             thread.start()
             thread_list.append(thread)

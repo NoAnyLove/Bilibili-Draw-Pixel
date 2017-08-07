@@ -9,7 +9,9 @@ from util import rgb_to_hex, process_task_missing_color, \
     draw_pixel_with_requests, extract_cookies
 
 
-def thread_main(user_id, user_cmd, task_queue, total, up):
+def thread_main(user_id, user_cmd, task_queue, total, up,
+                use_incremental_update):
+
     time.sleep(3)
     print("%s start working" % user_id)
     # cmd_template = process_cmd_template(user_cmd)
@@ -60,8 +62,10 @@ def thread_main(user_id, user_cmd, task_queue, total, up):
             # sleep for cool-down time
             if wait_time > 0:
                 time.sleep(wait_time)
-                # update image in case it wait for too long
-                up.lazy_update_image()
+
+                if not use_incremental_update:
+                    # update image in case it wait for too long
+                    up.lazy_update_image()
 
 
 if __name__ == "__main__":
@@ -80,10 +84,17 @@ if __name__ == "__main__":
 
     total_task = len(tasks)
     task_queue = Queue.Queue()
+
+    # TODO: flag
+    use_incremental_update = True
     up = UpdateImage()
-    # this is necessary, because we only call lazy_update_image at the end of
-    # loop inside worker thread
-    up.update_image()
+    if use_incremental_update:
+        up.update_image_with_incremental_update()
+    else:
+        # this is necessary, because we only call lazy_update_image at the end
+        # of loop inside worker thread
+        up.update_image()
+
     for index, task in enumerate(tasks, 1):
         task_queue.put((index, task))
 
@@ -103,7 +114,8 @@ if __name__ == "__main__":
             count += 1
             thread = threading.Thread(
                 target=thread_main,
-                args=(user_id, user_cmd, task_queue, total_task, up))
+                args=(user_id, user_cmd, task_queue, total_task, up,
+                      use_incremental_update))
             thread.daemon = True
             thread.start()
             thread_list.append(thread)
