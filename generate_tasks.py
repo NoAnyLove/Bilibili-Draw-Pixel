@@ -60,7 +60,7 @@ if __name__ == "__main__":
     try:
         with open(args.output_filename, "w") as fp:
             json.dump(tasks, fp)
-        print("Write tasks to %s" % args.output_filename)
+        print("Write %d tasks to %s" % (len(tasks), args.output_filename))
     except IOError as e:
         print("Failed to write tasks to %s, with error: " %
               (args.output_filename, e))
