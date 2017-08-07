@@ -6,7 +6,7 @@ import collections
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', dest='files', nargs='+', required=True)
-    parser.add_argument('-r', dest='remove_tasks', nargs='+')
+    parser.add_argument('-r', dest='remove_tasks', nargs='+', default=[])
     parser.add_argument('-o', dest='output', required=True)
 
     group = parser.add_mutually_exclusive_group()
