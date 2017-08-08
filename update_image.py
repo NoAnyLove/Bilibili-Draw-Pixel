@@ -56,7 +56,7 @@ class UpdateImage(object):
         self.last_update = None
         self.autosave = autosave
         self.lazy_threshold = lazy_threshold
-        self.timeout = 15
+        self.timeout = 30
         self.ws = websocket.WebSocketApp(
             r"ws://broadcastlv.chat.bilibili.com:2244/sub",
             on_message=self.on_message,
@@ -272,20 +272,43 @@ class UpdateImage(object):
         print("[INFO] WebSocket is closed after running %.2f seconds" %
               (time.time() - self.start_time))
 
-        # on_close means the WebSocket loop thread is terminated, we restart
-        # the loop
+        # on_close means the WebSocket loop thread is terminating, we need to
+        # restart the loop in another thread
         if self.enable_reconnect:
-            print("[INFO] restart WebSocket connection")
-            self.update_image_with_incremental_update()
+
+            def restart_websocket():
+                print("[INFO] restart WebSocket connection")
+                print("[INFO] waiting for previous WebSocket event loop"
+                      " to be terminated")
+                self.ws_loop_thread.join()
+                print("[INFO] previous WebSocket event loop is terminated")
+                self.update_image_with_incremental_update()
+                print("[INFO] restart thread is terminated")
+
+            # we need to join on the previous event loop thread to ensure it
+            # is really terminated
+            restart_thread = threading.Thread(target=restart_websocket)
+            restart_thread.daemon = True
+            restart_thread.start()
 
     def heart_beat(self):
         print("[DEBUG] Sending heart beat")
         self.ws.send(heart_beat)
 
     def start_websocket(self):
+        assert self.ws_loop_thread is None or \
+            not self.ws_loop_thread.is_alive(), \
+            "Previous WebSocket event loop thread is not terminated"
+
         # DO NOT join on the self.ws_loop_thread, it's the current thread.
         # Just create a new thread
-        self.ws_loop_thread = threading.Thread(target=self.ws.run_forever)
+        def run(ws):
+            try:
+                ws.run_forever()
+            except Exception as e:
+                print("Failed to run WebSocket event loop: %s" % e)
+
+        self.ws_loop_thread = threading.Thread(target=run, args=(self.ws, ))
         self.ws_loop_thread.daemon = True
         self.ws_loop_thread.start()
 
