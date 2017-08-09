@@ -11,6 +11,8 @@ import threading
 
 
 def find_a_polluted_pixel(tasks, up):
+    """This method will be called inside critical section
+    """
     for x, y, rgb_hex in tasks:
         rgb = hex_to_rgb(rgb_hex)
         if rgb != up.get_image_pixel(x, y):
@@ -24,6 +26,10 @@ def find_a_polluted_pixel(tasks, up):
 def thread_main(user_id, user_cmd, tasks, up, use_incremental_update):
     # improve the thread output at the beginning
     time.sleep(3 + random.random())
+
+    # used to count the number of occurrence of code -101
+    invalid_cookie_counter = 0
+
     print("%s start working" % user_id)
     interval = 60
     # cmd_template = process_cmd_template(user_cmd)
@@ -34,6 +40,7 @@ def thread_main(user_id, user_cmd, tasks, up, use_incremental_update):
             up.lazy_update_image()
 
         start_time = time.time()
+        # get_task will call find_func in critical section
         task = up.get_task(find_func)
         print("<%s> up.get_task returns in %.2f" %
               (user_id, time.time() - start_time))
@@ -46,29 +53,37 @@ def thread_main(user_id, user_cmd, tasks, up, use_incremental_update):
             continue
 
         print("<%s> start to draw (%d, %d)" % (user_id, x, y))
-        # output may be an empty string
-        output, cost_time = draw_pixel_with_requests(
+
+        status_code, wait_time, cost_time = draw_pixel_with_requests(
             user_cookies, x, y, rgb_hex)
 
-        # sometimes failed to get json
-        try:
-            status = None
-            status = json.loads(output)
-            wait_time = status['data']['time']
-            status_code = status['code']
-        except Exception:
-            print("@%s, <%s> failed to draw (%d, %d), wrong JSON"
-                  " response: %s" %
-                  (datetime.now(), user_id, x, y, status))
-            continue
-
-        if status_code == 0:
+        if status_code == 0:    # draw successfully
             print("@%s, <%s> draw (%d, %d) with %s, status: %d,"
                   " cost %.2fs" %
                   (datetime.now(), user_id,
                    x, y, rgb_hex, status_code, cost_time))
+#         elif status_code == -400:   # not ready to draw a new pixel
+#             print("@%s, <%s> draw (%d, %d), status: %d, "
+#                   "retry after %ds, cost %.2fs"
+#                   % (datetime.now(), user_id, x, y,
+#                       status_code, wait_time, cost_time))
+        elif status_code == -101:
+            invalid_cookie_counter += 1
+            print("@%s, <%s> has status %d for %d times, cost %.2fs"
+                  % (datetime.now(), user_id, status_code,
+                      invalid_cookie_counter, cost_time))
+            if invalid_cookie_counter >= 20:
+                sid = None
+                try:
+                    sid = user_cookies['sid']
+                except Exception:
+                    pass
+                print("@%s, <%s> exiting because of invalid cookie, associated"
+                      " sid: %s" %
+                      (datetime.now(), user_id, sid))
+                sys.exit()
         else:
-            print("@%s, <%s> draw (%d, %d), status: %d, "
+            print("@%s, <%s> draw (%d, %d) with status: %s, "
                   "retry after %ds, cost %.2fs"
                   % (datetime.now(), user_id, x, y,
                       status_code, wait_time, cost_time))
@@ -119,10 +134,19 @@ if __name__ == "__main__":
 
     print('[INFO] loaded %d accounts' % (count - 1))
 
+    last_update_time = time.time()
+    force_full_update_interval = 3600
     # run forever, until Ctrl+C is pressed
     while True:
         try:
-            time.sleep(1)
+            time.sleep(30)
+
+            if time.time() - last_update_time >= force_full_update_interval:
+                print("[INFO] force full update after %d seconds" %
+                      force_full_update_interval)
+                up.update_image()
+                last_update_time = time.time()
+
         except KeyboardInterrupt:
             print("Ctrl-c pressed, exiting")
             sys.exit()

@@ -13,6 +13,10 @@ def thread_main(user_id, user_cmd, task_queue, total, up,
                 use_incremental_update):
 
     time.sleep(3)
+
+    # used to count the number of occurrence of code -101
+    invalid_cookie_counter = 0
+
     print("%s start working" % user_id)
     # cmd_template = process_cmd_template(user_cmd)
     user_cookies = extract_cookies(user_cmd)
@@ -33,28 +37,38 @@ def thread_main(user_id, user_cmd, task_queue, total, up,
 
             # output may be an empty string
             print("<%s> start to draw (%d, %d)" % (user_id, x, y))
-            output, cost_time = draw_pixel_with_requests(
-                user_cookies, x, y, color)
 
-            # sometimes failed to get json
-            try:
-                status = None
-                status = json.loads(output)
-                wait_time = status['data']['time']
-                status_code = status['code']
-            except Exception:
-                print("[%d/%d] @%s, <%s> failed to draw (%d, %d), wrong JSON"
-                      " response: %s" %
-                      (index, total, datetime.now(), user_id, x, y, status))
-                continue
+            status_code, wait_time, cost_time = draw_pixel_with_requests(
+                user_cookies, x, y, color)
 
             if status_code == 0:
                 print("[%d/%d] @%s, <%s> draw (%d, %d) with %s, status: %d,"
                       " cost %.2fs" %
                       (index, total, datetime.now(), user_id,
                        x, y, color, status_code, cost_time))
+#             elif status_code == -400:   # not ready to draw a new pixel
+#                 print("[%d/%d] @%s, <%s> draw (%d, %d), status: %d, "
+#                       "retry after %ds, cost %.2fs"
+#                       % (index, total, datetime.now(), user_id, x, y,
+#                           status_code, wait_time, cost_time))
+            elif status_code == -101:
+                invalid_cookie_counter += 1
+                print("@%s, <%s> has status %d for %d times, cost %.2fs"
+                      % (datetime.now(), user_id, status_code,
+                          invalid_cookie_counter, cost_time))
+                if invalid_cookie_counter >= 20:
+                    sid = None
+                    try:
+                        sid = user_cookies['sid']
+                    except Exception:
+                        pass
+
+                    print("@%s, <%s> exiting because of invalid cookie, "
+                          "associated sid: %s" %
+                          (datetime.now(), user_id, sid))
+                    sys.exit()
             else:
-                print("[%d/%d] @%s, <%s> draw (%d, %d), status: %d, "
+                print("[%d/%d] @%s, <%s> draw (%d, %d), status: %s, "
                       "retry after %ds, cost %.2fs"
                       % (index, total, datetime.now(), user_id, x, y,
                           status_code, wait_time, cost_time))

@@ -3,6 +3,7 @@ import subprocess
 import re
 import requests
 import collections
+import json
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
 
@@ -154,4 +155,42 @@ def draw_pixel_with_requests(cookies, x, y, rgb_hex):
     except Exception as e:
         print("draw_pixel: error occurs %s" % e)
 
-    return output, time.time() - start_time
+    # return output, time.time() - start_time
+
+    # sometimes failed to get json
+    try:
+        status = None
+        status_code = None
+
+        status = json.loads(output)
+        status_code = status['code']
+        wait_time = status['data']['time']
+    except Exception:
+        #         print("@%s, <%s> failed to draw (%d, %d), wrong JSON"
+        #               " response: %s" %
+        #               (datetime.now(), user_id, x, y, status))
+
+        # sleep 30 seconds if failed, avoid busy loop
+        wait_time = 30
+
+    return status_code, wait_time, time.time() - start_time
+
+
+# def draw_pixel_with_requests(cookies, x, y, rgb_hex):
+#     assert isinstance(cookies, collections.Mapping), 'cookies is not dict'
+#     color_code = rgb_hex_to_color_code(rgb_hex)
+#     payload = dict(x_min=x, y_min=y, x_max=x, y_max=y, color=color_code)
+#     output = ''
+#     try:
+#         start_time = time.time()
+#         r = requests.post(post_url, data=payload, cookies=cookies,
+#                           headers=fake_request_header, timeout=60)
+#         output = r.content
+#     except requests.ConnectionError:
+#         print("draw_pixel: Failed to connect to Bilibili.com")
+#     except requests.ConnectTimeout:
+#         print("draw_pixel: Connection timeout")
+#     except Exception as e:
+#         print("draw_pixel: error occurs %s" % e)
+#
+#     return output, time.time() - start_time
