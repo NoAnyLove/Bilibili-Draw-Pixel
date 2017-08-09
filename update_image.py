@@ -194,6 +194,7 @@ class UpdateImage(object):
         self.heart_beat_thread.start()
 
     def on_message(self, ws, message):
+        # TODO: force full update after certain amount of time
         try:
             message_header = MessageHeader._make(
                 message_header_struct.unpack_from(message)
@@ -272,24 +273,31 @@ class UpdateImage(object):
         print("[INFO] WebSocket is closed after running %.2f seconds" %
               (time.time() - self.start_time))
 
+        # Force a full update
+        self.update_image()
+
+        # when on_close returns, the run_forever method also returns. Then
+        # while True loop in self.ws_loop_thread will execute run_forever
+        # again, and it will reconnect to the server
+
         # on_close means the WebSocket loop thread is terminating, we need to
         # restart the loop in another thread
-        if self.enable_reconnect:
+#         if self.enable_reconnect:
+#
+#             def restart_websocket():
+#                 print("[INFO] restart WebSocket connection")
+#                 print("[INFO] waiting for previous WebSocket event loop"
+#                       " to be terminated")
+#                 self.ws_loop_thread.join()
+#                 print("[INFO] previous WebSocket event loop is terminated")
+#                 self.update_image_with_incremental_update()
+#                 print("[INFO] restart thread is terminated")
 
-            def restart_websocket():
-                print("[INFO] restart WebSocket connection")
-                print("[INFO] waiting for previous WebSocket event loop"
-                      " to be terminated")
-                self.ws_loop_thread.join()
-                print("[INFO] previous WebSocket event loop is terminated")
-                self.update_image_with_incremental_update()
-                print("[INFO] restart thread is terminated")
-
-            # we need to join on the previous event loop thread to ensure it
-            # is really terminated
-            restart_thread = threading.Thread(target=restart_websocket)
-            restart_thread.daemon = True
-            restart_thread.start()
+        # we need to join on the previous event loop thread to ensure it
+        # is really terminated
+        # restart_thread = threading.Thread(target=restart_websocket)
+        # restart_thread.daemon = True
+        # restart_thread.start()
 
     def heart_beat(self):
         print("[DEBUG] Sending heart beat")
@@ -300,13 +308,15 @@ class UpdateImage(object):
             not self.ws_loop_thread.is_alive(), \
             "Previous WebSocket event loop thread is not terminated"
 
-        # DO NOT join on the self.ws_loop_thread, it's the current thread.
-        # Just create a new thread
+        # execute ws.run_forever infinitely
         def run(ws):
-            try:
-                ws.run_forever()
-            except Exception as e:
-                print("Failed to run WebSocket event loop: %s" % e)
+            while True:
+                try:
+                    print("[DEBUG] start ws.run_forever")
+                    ws.run_forever()
+                    print("[DEBUG] ws.run_forever terminates")
+                except Exception as e:
+                    print("ws.run_forever(): %s" % e)
 
         self.ws_loop_thread = threading.Thread(target=run, args=(self.ws, ))
         self.ws_loop_thread.daemon = True
@@ -317,11 +327,12 @@ class UpdateImage(object):
             try:
                 self.heart_beat()
             except websocket.WebSocketConnectionClosedException:
+                # ws_loop_thread will reconnect to server soon
                 print("[ERROR] WebSocket connection is already closed")
-                break
+                # break
             except Exception as e:
                 print("[ERROR] heart beat thread has error: %e" % e)
-                break
+                # break
             time.sleep(30)
         print("[INFO] heart beat threat exit")
 
