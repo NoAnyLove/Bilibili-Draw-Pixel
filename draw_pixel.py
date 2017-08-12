@@ -6,7 +6,7 @@ import Queue
 import threading
 from update_image import UpdateImage
 from util import rgb_to_hex, process_task_missing_color, \
-    draw_pixel_with_requests, extract_cookies
+    draw_pixel_with_requests, extract_cookies, process_status_101
 
 
 def thread_main(user_id, user_cmd, task_queue, total, up,
@@ -52,21 +52,8 @@ def thread_main(user_id, user_cmd, task_queue, total, up,
 #                       % (index, total, datetime.now(), user_id, x, y,
 #                           status_code, wait_time, cost_time))
             elif status_code == -101:
-                invalid_cookie_counter += 1
-                print("@%s, <%s> has status %d for %d times, cost %.2fs"
-                      % (datetime.now(), user_id, status_code,
-                          invalid_cookie_counter, cost_time))
-                if invalid_cookie_counter >= 20:
-                    sid = None
-                    try:
-                        sid = user_cookies['sid']
-                    except Exception:
-                        pass
-
-                    print("@%s, <%s> exiting because of invalid cookie, "
-                          "associated sid: %s" %
-                          (datetime.now(), user_id, sid))
-                    sys.exit()
+                process_status_101(invalid_cookie_counter,
+                                   user_id, cost_time, user_cookies)
             else:
                 print("[%d/%d] @%s, <%s> draw (%d, %d), status: %s, "
                       "retry after %ds, cost %.2fs"

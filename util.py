@@ -2,8 +2,10 @@ import time
 import subprocess
 import re
 import requests
+import sys
 import collections
 import json
+from datetime import datetime
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
 from six.moves import xrange
@@ -195,3 +197,20 @@ def draw_pixel_with_requests(cookies, x, y, rgb_hex):
 #         print("draw_pixel: error occurs %s" % e)
 #
 #     return output, time.time() - start_time
+
+def process_status_101(counter, user_id, cost_time, user_cookies):
+    # use a list container to hold an integer
+    counter[0] += 1
+    print("@%s, <%s> has status -101 for %d times, cost %.2fs"
+          % (datetime.now(), user_id,
+              counter[0], cost_time))
+    if counter[0] >= 10:
+        uid = None
+        try:
+            uid = user_cookies['DedeUserID']
+        except Exception:
+            pass
+        print("@%s, <%s> exiting because of invalid cookie, associated"
+              " uid: %s" %
+              (datetime.now(), user_id, uid))
+        sys.exit()
