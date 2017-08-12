@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 from PIL import Image
 import websocket
+import six
 from util import code_map, hex_to_rgb
 
 
@@ -92,7 +93,7 @@ class UpdateImage(object):
             print("Failed to update image with error: %s" % e)
             return
 
-        if not isinstance(code_data, basestring):
+        if not isinstance(code_data, six.string_types):
             print("Incorrect code data: %s" % code_data)
             return
         if len(code_data) != 1280 * 720:

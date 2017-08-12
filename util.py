@@ -6,6 +6,7 @@ import collections
 import json
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
+from six.moves import xrange
 
 color_map = {"#000000": "0",
              "#2e8faf": "I",
