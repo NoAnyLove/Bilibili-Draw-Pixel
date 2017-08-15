@@ -43,28 +43,28 @@ MessageHeader = collections.namedtuple("MessageHeader",
 
 
 class AsyncUpdateImage(object):
-    def __init__(self, lazy_threshold=60, loop=None):
+    def __init__(self, *, lazy_threshold=60, task_queue=None,
+                 guard_region=None, loop=None):
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        self.loop = loop
+        self.task_queue = task_queue
+        self.guard_region = guard_region
+        self.full_update_callback = None
+
         self.width = 1280
         self.height = 720
         self.image_buffer = bytearray(self.width * self.height * 3)
         self.last_update = None
         self.lazy_threshold = lazy_threshold
         self.timeout = 30
-        if loop is None:
-            loop = asyncio.get_event_loop()
-        self.loop = loop
+
         self.session = aiohttp.ClientSession(loop=loop)
         self.async_lock = asyncio.Lock(loop=loop)
         self.enable_reconnect = True
         self.websocket_task = None
-        self.full_update_callback = None
-        self.guard_region = None
-        self.guard_region_callback = None
-        self.task_queue = None
         self.heart_beat_task = None
-
-    def get_auto_save_filename(self):
-        return self.filename_template.format(datetime.now())
+        self.guard_region_callback = None
 
     async def async_update_image(self):
         """ Avoid invoking this method in different threads
@@ -130,7 +130,10 @@ class AsyncUpdateImage(object):
 
     def save_buffer_to_file(self, filename):
         img = Image.frombytes("RGB", (1280, 720), bytes(self.image_buffer))
-        img.save(filename, "GIF")
+        try:
+            img.save(filename, "GIF")
+        except Exception as err:
+            print("Failed to save file %s with error: %s" % (filename, err))
 
     def get_task(self, func):
         task = func(self)

@@ -84,12 +84,10 @@ def main():
     # TODO: use PriorityQueue to have better control of tasks
     task_queue = asyncio.Queue(loop=loop)
 
-    up = AsyncUpdateImage()
+    # enable reactive guard
+    up = AsyncUpdateImage(task_queue=task_queue, guard_region=tasks_dict)
     up.full_update_callback = functools.partial(
         populate_tasks, tasks_dict, up, task_queue)
-    # enable reactive guard
-    up.task_queue = task_queue
-    up.guard_region = tasks_dict
 
     session_list = []
     with open(user_filename, "r") as fp:
