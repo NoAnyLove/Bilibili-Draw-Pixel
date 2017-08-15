@@ -33,8 +33,8 @@ if __name__ == "__main__":
         width, height = img_pattern.size
         x_boundary, y_boundary = img_rgb.size
         x_base, y_base = args.topleft
-        for x in xrange(width):
-            for y in xrange(height):
+        for x in range(width):
+            for y in range(height):
                 assert x_base + x < x_boundary, \
                     "pattern image (%d,%d) is out of scope" % (x, y)
                 assert y_base + y < y_boundary, \
@@ -47,8 +47,8 @@ if __name__ == "__main__":
 
     if args.rect is not None:
         start_x, start_y, end_x, end_y = args.rect
-        for y in xrange(start_y, end_y + 1):
-            for x in xrange(start_x, end_x + 1):
+        for y in range(start_y, end_y + 1):
+            for x in range(start_x, end_x + 1):
                 r, g, b = img_rgb.getpixel((x, y))
                 # print(x, y, rgb_to_hex(r, g, b))
                 tasks.append((x, y, rgb_to_hex(r, g, b)))

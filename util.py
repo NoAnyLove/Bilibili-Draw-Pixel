@@ -7,7 +7,6 @@ import json
 from datetime import datetime
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
-from six.moves import xrange
 import aiohttp
 
 
@@ -126,7 +125,7 @@ def process_tasks(tasks):
     """
     # TODO: it might be better to use collections.defaultdict(str)
     tasks_dict = collections.OrderedDict()
-    for i in xrange(len(tasks)):
+    for i in range(len(tasks)):
         x, y, rgb_hex = tasks[i]
         if rgb_hex not in COLOR_CODE_TABLE:
             # TODO: improve the way to process missing color
