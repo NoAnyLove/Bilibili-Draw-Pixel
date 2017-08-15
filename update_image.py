@@ -277,29 +277,6 @@ class UpdateImage(object):
         # Force a full update
         self.update_image()
 
-        # when on_close returns, the run_forever method also returns. Then
-        # while True loop in self.ws_loop_thread will execute run_forever
-        # again, and it will reconnect to the server
-
-        # on_close means the WebSocket loop thread is terminating, we need to
-        # restart the loop in another thread
-#         if self.enable_reconnect:
-#
-#             def restart_websocket():
-#                 print("[INFO] restart WebSocket connection")
-#                 print("[INFO] waiting for previous WebSocket event loop"
-#                       " to be terminated")
-#                 self.ws_loop_thread.join()
-#                 print("[INFO] previous WebSocket event loop is terminated")
-#                 self.update_image_with_incremental_update()
-#                 print("[INFO] restart thread is terminated")
-
-        # we need to join on the previous event loop thread to ensure it
-        # is really terminated
-        # restart_thread = threading.Thread(target=restart_websocket)
-        # restart_thread.daemon = True
-        # restart_thread.start()
-
     def heart_beat(self):
         print("[DEBUG] Sending heart beat")
         self.ws.send(heart_beat)
@@ -330,10 +307,8 @@ class UpdateImage(object):
             except websocket.WebSocketConnectionClosedException:
                 # ws_loop_thread will reconnect to server soon
                 print("[ERROR] WebSocket connection is already closed")
-                # break
             except Exception as e:
                 print("[ERROR] heart beat thread has error: %e" % e)
-                # break
             time.sleep(30)
         print("[INFO] heart beat threat exit")
 
@@ -348,8 +323,6 @@ def convert_code_to_bytes(CODE_COLOR_TABLE, code_data, buf):
     for code in code_data:
         rgb_hex = CODE_COLOR_TABLE[code]
         rgb = hex_to_rgb(rgb_hex)
-        buf[i] = rgb[0]
-        buf[i + 1] = rgb[1]
-        buf[i + 2] = rgb[2]
+        buf[i:i + 3] = rgb
         i += 3
     return buf
