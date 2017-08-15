@@ -9,7 +9,7 @@ from datetime import datetime
 from PIL import Image
 import websocket
 import six
-from util import code_map, hex_to_rgb
+from util import CODE_COLOR_TABLE, hex_to_rgb
 
 
 __all__ = ["UpdateImage"]
@@ -102,7 +102,8 @@ class UpdateImage(object):
         print("Enter critical section: update image date")
         # thread synchronization
         with self.sync_lock:
-            convert_code_to_bytes(code_map, code_data, self.image_buffer)
+            convert_code_to_bytes(
+                CODE_COLOR_TABLE, code_data, self.image_buffer)
             if auto_save or self.autosave:
                 if not self.exist_dir and not os.path.exists('autosave'):
                     print("Create output folder autosave")
@@ -232,7 +233,7 @@ class UpdateImage(object):
                     x = message_object['data']['x_max']
                     y = message_object['data']['y_max']
                     color_code = message_object['data']['color']
-                    rgb = hex_to_rgb(code_map[color_code])
+                    rgb = hex_to_rgb(CODE_COLOR_TABLE[color_code])
                     update_list.append([x, y, rgb])
 
                     print("@%s, cmd: %s, update (%d, %d) with color %s" %
@@ -343,10 +344,10 @@ class UpdateImage(object):
         self.start_websocket()
 
 
-def convert_code_to_bytes(code_map, code_data, buf):
+def convert_code_to_bytes(CODE_COLOR_TABLE, code_data, buf):
     i = 0
     for code in code_data:
-        rgb_hex = code_map[code]
+        rgb_hex = CODE_COLOR_TABLE[code]
         rgb = hex_to_rgb(rgb_hex)
         buf[i] = rgb[0]
         buf[i + 1] = rgb[1]

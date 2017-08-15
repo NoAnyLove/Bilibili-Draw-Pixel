@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 import sys
 from update_image import UpdateImage
-from util import hex_to_rgb, process_task_missing_color, \
+from util import hex_to_rgb, process_tasks, \
     draw_pixel_with_requests, extract_cookies, process_status_101
 import functools
 import threading
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         tasks = json.load(fp)
 
     # convert missing colors to available colors
-    process_task_missing_color(tasks)
+    process_tasks(tasks)
 
     # TODO: flag
     use_incremental_update = True

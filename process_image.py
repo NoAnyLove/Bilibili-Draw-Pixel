@@ -2,7 +2,7 @@ import sys
 import time
 
 from PIL import Image
-from util import find_nearest_color, hex_to_rgb, color_map
+from util import find_nearest_color, hex_to_rgb, COLOR_CODE_TABLE
 
 
 if __name__ == '__main__':
@@ -19,7 +19,7 @@ if __name__ == '__main__':
     print("Start converting")
     start_time = time.time()
     cache = {}
-    rgb_table = {hex_to_rgb(rgb_hex) for rgb_hex in color_map.keys()}
+    rgb_table = {hex_to_rgb(rgb_hex) for rgb_hex in COLOR_CODE_TABLE.keys()}
 
     def process_rgba(r, g, b, a):
         rgb = (r, g, b)

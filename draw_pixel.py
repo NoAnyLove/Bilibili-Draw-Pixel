@@ -5,7 +5,7 @@ import sys
 import Queue
 import threading
 from update_image import UpdateImage
-from util import rgb_to_hex, process_task_missing_color, \
+from util import rgb_to_hex, process_tasks, \
     draw_pixel_with_requests, extract_cookies, process_status_101
 
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         tasks = json.load(fp)
 
     # convert missing colors to available colors
-    process_task_missing_color(tasks)
+    process_tasks(tasks)
 
     total_task = len(tasks)
     task_queue = Queue.Queue()

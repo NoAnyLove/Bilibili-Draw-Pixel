@@ -1,16 +1,31 @@
-import time
 import subprocess
+import time
 import re
 import requests
-import sys
 import collections
 import json
 from datetime import datetime
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
 from six.moves import xrange
+import aiohttp
 
-color_map = {
+
+def rgb_to_hex(r, g, b):
+    return "#%02x%02x%02x" % (r, g, b)
+
+
+def hex_to_rgb(rgb_hex):
+    assert rgb_hex.startswith('#')
+    assert len(rgb_hex) == 7
+    r = int(rgb_hex[1:3], 16)
+    g = int(rgb_hex[3:5], 16)
+    b = int(rgb_hex[5:7], 16)
+    return (r, g, b)
+
+
+# '#2196f3' -> 'G'
+COLOR_CODE_TABLE = {
     '#2196f3': 'G',
     '#9c27b0': 'B',
     '#ff5722': 'T',
@@ -45,6 +60,15 @@ color_map = {
     '#f44336': '8'
 }
 
+# 'G' -> '#2196f3'
+CODE_COLOR_TABLE = {v: k for k, v in COLOR_CODE_TABLE.items()}
+
+# (255, 255, 255) -> '1'
+RGB_CODE_TABLE = {hex_to_rgb(k): v for k, v in COLOR_CODE_TABLE.items()}
+
+# '1' -> (255, 255, 255)
+CODE_RGB_TABLE = {v: k for k, v in RGB_CODE_TABLE.items()}
+
 missing_color_table = {
     "#f0fdf3": "#ffffff",
     '#137b9f': '#057197',
@@ -53,8 +77,6 @@ missing_color_table = {
     '#60b2cc': '#71bed6',
     '#10577e': '#004670',
 }
-
-code_map = {v: k for k, v in color_map.items()}
 
 
 def missing_color(rgb_hex):
@@ -67,19 +89,6 @@ def missing_color(rgb_hex):
     return rgb_hex
 
 
-def rgb_to_hex(r, g, b):
-    return "#%02x%02x%02x" % (r, g, b)
-
-
-def hex_to_rgb(rgb_hex):
-    assert rgb_hex.startswith('#')
-    assert len(rgb_hex) == 7
-    r = int(rgb_hex[1:3], 16)
-    g = int(rgb_hex[3:5], 16)
-    b = int(rgb_hex[5:7], 16)
-    return (r, g, b)
-
-
 def rgb_to_lab(r, g, b):
     rgb_color = sRGBColor(r, g, b)
     lab_color = convert_color(rgb_color, LabColor)
@@ -87,7 +96,7 @@ def rgb_to_lab(r, g, b):
 
 
 lab_map = {rgb_to_lab(*hex_to_rgb(rgb_hex)): rgb_hex
-           for rgb_hex in color_map.keys()}
+           for rgb_hex in COLOR_CODE_TABLE.keys()}
 
 
 def dist(color1, color2):
@@ -95,13 +104,13 @@ def dist(color1, color2):
 
 
 def avialalbe_in_pallete(rgb_hex):
-    return rgb_hex in color_map
+    return rgb_hex in COLOR_CODE_TABLE
 
 
 def rgb_hex_to_color_code(rgb_hex):
-    if rgb_hex not in color_map:
+    if rgb_hex not in COLOR_CODE_TABLE:
         rgb_hex = missing_color(rgb_hex)
-    return color_map[rgb_hex]
+    return COLOR_CODE_TABLE[rgb_hex]
 
 
 def find_nearest_color(r, g, b):
@@ -112,14 +121,19 @@ def find_nearest_color(r, g, b):
     return lab_map[nearest_lab]
 
 
-def process_task_missing_color(tasks):
+def process_tasks(tasks):
     """in-place tasks processing, convert missing colors to available colors
     """
+    # TODO: it might be better to use collections.defaultdict(str)
+    tasks_dict = collections.OrderedDict()
     for i in xrange(len(tasks)):
         x, y, rgb_hex = tasks[i]
-        if rgb_hex not in color_map:
+        if rgb_hex not in COLOR_CODE_TABLE:
+            # TODO: improve the way to process missing color
             rgb_hex = missing_color(rgb_hex)
-            tasks[i] = (x, y, rgb_hex)
+        color_code = COLOR_CODE_TABLE[rgb_hex]
+        tasks_dict[(x, y)] = color_code
+    return tasks_dict
 
 
 def draw_pixel(cmd_template, x, y, rgb_hex):
@@ -133,7 +147,7 @@ def draw_pixel(cmd_template, x, y, rgb_hex):
     return output, time.time() - start_time
 
 
-fake_request_header = request_header = {
+fake_request_header = {
     'user-agent': r'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit'
     '/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36',
     'Origin': r'http://live.bilibili.com',
@@ -194,9 +208,41 @@ def draw_pixel_with_requests(cookies, x, y, rgb_hex):
     return status_code, wait_time, time.time() - start_time
 
 
-# def draw_pixel_with_requests(cookies, x, y, rgb_hex):
+async def async_draw_pixel_with_requests(session, x, y, color_code):
+    payload = dict(x_min=x, y_min=y, x_max=x, y_max=y, color=color_code)
+    output = ''
+    try:
+        start_time = time.time()
+        async with session.post(post_url, data=payload,
+                                headers=fake_request_header, timeout=60) as r:
+            output = await r.text()
+
+    except aiohttp.ClientConnectionError:
+        print("draw_pixel: Failed to connect to Bilibili.com")
+    except aiohttp.ServerTimeoutError:
+        print("draw_pixel: Connection timeout")
+    except Exception as e:
+        print("draw_pixel: error occurs %s" % e)
+
+    # sometimes failed to get json
+    try:
+        status = None
+        status_code = None
+
+        status = json.loads(output)
+        status_code = status['code']
+        wait_time = status['data']['time']
+    except Exception:
+
+        # sleep 30 seconds if failed, avoid busy loop
+        wait_time = 30
+
+    return status_code, wait_time, time.time() - start_time
+
+
+# def draw_pixel_with_requests(cookies, x, y, color_code):
 #     assert isinstance(cookies, collections.Mapping), 'cookies is not dict'
-#     color_code = rgb_hex_to_color_code(rgb_hex)
+#     color_code = rgb_hex_to_color_code(color_code)
 #     payload = dict(x_min=x, y_min=y, x_max=x, y_max=y, color=color_code)
 #     output = ''
 #     try:
@@ -213,19 +259,15 @@ def draw_pixel_with_requests(cookies, x, y, rgb_hex):
 #
 #     return output, time.time() - start_time
 
-def process_status_101(counter, user_id, cost_time, user_cookies):
+def process_status_101(user_counters, worker_id, user_id, cost_time, workers):
     # use a list container to hold an integer
-    counter[0] += 1
-    print("@%s, <%s> has status -101 for %d times, cost %.2fs"
-          % (datetime.now(), user_id,
-              counter[0], cost_time))
-    if counter[0] >= 10:
-        uid = None
-        try:
-            uid = user_cookies['DedeUserID']
-        except Exception:
-            pass
-        print("@%s, <%s> exiting because of invalid cookie, associated"
+    user_counters[user_id] += 1
+    times = user_counters[user_id]
+    print("@%s, <worker-%s> has status -101 for %d times, cost %.2fs"
+          % (datetime.now(), worker_id,
+              times, cost_time))
+    if times >= 10:
+        print("@%s, <worker-%s> exiting because of invalid cookie, associated"
               " uid: %s" %
-              (datetime.now(), user_id, uid))
-        sys.exit()
+              (datetime.now(), worker_id, user_id))
+        workers[worker_id].cancel()
