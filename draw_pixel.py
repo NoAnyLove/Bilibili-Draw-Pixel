@@ -2,41 +2,30 @@
 
 import json
 from datetime import datetime
-import functools
 import sys
 import asyncio
 import collections
-import aiohttp
-from async_update_image import AsyncUpdateImage
-from util import process_tasks, RGB_CODE_TABLE, CODE_RGB_TABLE,\
+from update_image import UpdateImage
+from util import process_tasks, RGB_CODE_TABLE,\
     async_draw_pixel_with_requests, extract_cookies, process_status_101
+import aiohttp
 
 
-def find_all_polluted_pixels(tasks_dict, up):
-    """This method will be called inside critical section
-    """
-    polluted_tasks = []
-    for (x, y), color_code in tasks_dict.items():
-        rgb = CODE_RGB_TABLE[color_code]
-        if rgb != up.get_image_pixel(x, y):
-            polluted_tasks.append((x, y, color_code))
-    return polluted_tasks
-
-
-async def task_main(worker_id, user_id, session, task_queue, up,
+async def task_main(worker_id, user_id, session, task_queue, total, up,
                     user_counters, workers):
     print("<worker-%s> start working" % worker_id)
     wait_time = -1
     while True:
-        x, y, color_code = await task_queue.get()
+        index, x, y, color_code = await task_queue.get()
         while True:
             # check if it is already the correct color_code
             current_rgb = up.get_image_pixel(x, y)
             current_color_code = RGB_CODE_TABLE[current_rgb]
             wait_time = -1
             if current_color_code == color_code:
-                print("@%s, <worker-%s> skip correct pixel (%d, %d)" %
-                      (datetime.now(), worker_id, x, y))
+                print("[%d/%d] @%s, <worker-%s> skip correct pixel (%d, %d)" %
+                      (index, total, datetime.now(), worker_id, x, y))
+                task_queue.task_done()
                 break
 
             # output may be an empty string
@@ -46,17 +35,18 @@ async def task_main(worker_id, user_id, session, task_queue, up,
                 await async_draw_pixel_with_requests(session, x, y, color_code)
 
             if status_code == 0:
-                print("@%s, <worker-%s> draw (%d, %d) with %s, status:"
+                print("[%d/%d] @%s, <worker-%s> draw (%d, %d) with %s, status:"
                       " %d, cost %.2fs" %
-                      (datetime.now(), worker_id,
+                      (index, total, datetime.now(), worker_id,
                        x, y, color_code, status_code, cost_time))
+                task_queue.task_done()
             elif status_code == -101:
                 process_status_101(user_counters, worker_id,
                                    user_id, cost_time, workers)
             else:
-                print("@%s, <worker-%s> draw (%d, %d), status: %s, "
+                print("[%d/%d] @%s, <worker-%s> draw (%d, %d), status: %s, "
                       "retry after %ds, cost %.2fs"
-                      % (datetime.now(), worker_id, x, y,
+                      % (index, total, datetime.now(), worker_id, x, y,
                           status_code, wait_time, cost_time))
 
             # sleep for cool-down time
@@ -78,16 +68,15 @@ def main():
     # convert missing colors to available colors, and convert RGB hex to
     # one-character color code
     tasks_dict = process_tasks(tasks)
+    total_task = len(tasks_dict)
     user_counters = collections.defaultdict(int)
     loop = asyncio.get_event_loop()
     connector = aiohttp.TCPConnector(loop=loop)
     # TODO: use PriorityQueue to have better control of tasks
     task_queue = asyncio.Queue(loop=loop)
 
-    # enable reactive guard
-    up = AsyncUpdateImage(task_queue=task_queue, guard_region=tasks_dict)
-    up.full_update_callback = functools.partial(
-        populate_tasks, tasks_dict, up, task_queue)
+    for index, ((x, y), color_code) in enumerate(tasks_dict.items(), 1):
+        task_queue.put_nowait((index, x, y, color_code))
 
     session_list = []
     with open(user_filename, "r") as fp:
@@ -111,32 +100,26 @@ def main():
 
     print('[INFO] loaded %d accounts' % len(session_list))
 
-    # Load plugin clock
-    import clock
-    clock_plugin = clock.ClockPlugin(loop, tasks_dict, up, task_queue)
-    clock_plugin.enable()
-
-    loop.run_until_complete(up.async_update_image())
-    # TODO
-    # websocket_task = asyncio.ensure_future(up.start_websocket())
+    up = UpdateImage()
+    loop.run_until_complete(up.perform_update_image())
     asyncio.ensure_future(up.start_websocket())
 
     workers = [None] * len(session_list)
     for worker_id, (user_cookies, session) in enumerate(session_list):
         workers[worker_id] = asyncio.Task(
             task_main(worker_id, user_cookies['DedeUserID'], session,
-                      task_queue, up, user_counters, workers),
+                      task_queue, total_task, up, user_counters, workers),
             loop=loop
         )
 
     try:
-        loop.run_forever()
+        loop.run_until_complete(asyncio.ensure_future(task_queue.join()))
+        # loop.run_forever()
         print("Finished all tasks, existing")
     except KeyboardInterrupt:
         print("Ctrl-c pressed, exiting")
-        # need to close AsyncUpdateImage first to avoid the "Task was destroyed
-        # but it is pending!" warning at async_update_image.py:247
         up.close()
+    finally:
         # cancel all running tasks
         all_tasks = asyncio.Task.all_tasks()
         for task in all_tasks:
@@ -145,19 +128,15 @@ def main():
         # pending!" warning. The Task.cancel() method arranges for a
         # CancelledError to be thrown in the next cycle of event loop, we need
         # to give the event loop a chance to finish this.
-        loop.run_until_complete(asyncio.gather(*all_tasks))
-    finally:
+        try:
+            loop.run_until_complete(asyncio.gather(*all_tasks))
+        except asyncio.CancelledError:
+            pass
+        up.close()
         connector.close()
         loop.stop()
         loop.close()
         sys.exit()
-
-
-def populate_tasks(tasks_dict, up, task_queue):
-    find_func = functools.partial(find_all_polluted_pixels, tasks_dict)
-    polluted_pixels = up.get_task(find_func)
-    for task in polluted_pixels:
-        task_queue.put_nowait(task)
 
 
 if __name__ == "__main__":

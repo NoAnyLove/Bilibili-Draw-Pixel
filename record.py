@@ -3,7 +3,7 @@
 import asyncio
 import os
 from datetime import datetime
-from async_update_image import AsyncUpdateImage
+from update_image import UpdateImage
 
 interval = 180
 filename_template = "autosave/autosave_{:%Y_%m_%d-%H_%M_%S}.gif"
@@ -23,7 +23,7 @@ async def wakeup():
 
 async def recording(up):
     while True:
-        await up.async_update_image()
+        await up.perform_update_image()
         filename = filename_template.format(datetime.now())
         up.save_buffer_to_file(filename)
         print_log(filename)
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         print("Create output folder autosave")
         os.makedirs("autosave")
 
-    up = AsyncUpdateImage()
+    up = UpdateImage()
     print("Start @%s" % datetime.now())
     loop = asyncio.get_event_loop()
     try:

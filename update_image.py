@@ -9,7 +9,7 @@ from PIL import Image
 from util import CODE_COLOR_TABLE, hex_to_rgb, CODE_RGB_TABLE
 
 
-__all__ = ["AsyncUpdateImage"]
+__all__ = ["UpdateImage"]
 
 url = r"http://api.live.bilibili.com/activity/v1/SummerDraw/bitmap"
 
@@ -42,7 +42,7 @@ MessageHeader = collections.namedtuple("MessageHeader",
                                        ])
 
 
-class AsyncUpdateImage(object):
+class UpdateImage(object):
     def __init__(self, *, lazy_threshold=60, task_queue=None,
                  guard_region=None, loop=None):
         if loop is None:
@@ -66,7 +66,7 @@ class AsyncUpdateImage(object):
         self.heart_beat_task = None
         self.guard_region_callback = None
 
-    async def async_update_image(self):
+    async def perform_update_image(self):
         """ Avoid invoking this method in different threads
         """
         print("Downloading %s" % url)
@@ -106,9 +106,9 @@ class AsyncUpdateImage(object):
 
         async with self.async_lock:
             if self.last_update is None:
-                await self.async_update_image()
+                await self.perform_update_image()
             elif time.time() > self.last_update + self.lazy_threshold:
-                await self.async_update_image()
+                await self.perform_update_image()
             else:
                 ret = self.last_update
         end_time = time.time()
@@ -253,7 +253,7 @@ class AsyncUpdateImage(object):
         # force a full update and reconnect WebSocket
         if self.enable_reconnect:
             print("[DEBUG] reconnect websocket")
-            await self.async_update_image()
+            await self.perform_update_image()
             self.websocket_task = asyncio.ensure_future(self.start_websocket())
 
     def close(self):
