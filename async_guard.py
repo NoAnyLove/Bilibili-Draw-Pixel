@@ -134,16 +134,19 @@ def main():
         print("Finished all tasks, existing")
     except KeyboardInterrupt:
         print("Ctrl-c pressed, exiting")
-
+        # need to close AsyncUpdateImage first to avoid the "Task was destroyed
+        # but it is pending!" warning at async_update_image.py:247
+        up.close()
         # cancel all running tasks
         all_tasks = asyncio.Task.all_tasks()
         for task in all_tasks:
             task.cancel()
         # this line is necessary to avoid the "Task was destroyed but it is
-        # pending!" warning
+        # pending!" warning. The Task.cancel() method arranges for a
+        # CancelledError to be thrown in the next cycle of event loop, we need
+        # to give the event loop a chance to finish this.
         loop.run_until_complete(asyncio.gather(*all_tasks))
     finally:
-        up.close()
         connector.close()
         loop.stop()
         loop.close()
