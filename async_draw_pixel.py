@@ -16,7 +16,7 @@ async def task_main(worker_id, user_id, session, task_queue, total, up,
     print("<worker-%s> start working" % worker_id)
     wait_time = -1
     while True:
-        index, (x, y, color_code) = await task_queue.get()
+        index, x, y, color_code = await task_queue.get()
         while True:
             # check if it is already the correct color_code
             current_rgb = up.get_image_pixel(x, y)
@@ -65,18 +65,18 @@ def main():
     with open(tasks_filename, "r") as fp:
         tasks = json.load(fp)
 
-    # convert missing colors to available colors
-    process_tasks(tasks)
-
+    # convert missing colors to available colors, and convert RGB hex to
+    # one-character color code
+    tasks_dict = process_tasks(tasks)
+    total_task = len(tasks_dict)
     user_counters = collections.defaultdict(int)
-
     loop = asyncio.get_event_loop()
     connector = aiohttp.TCPConnector(loop=loop)
-    total_task = len(tasks)
+    # TODO: use PriorityQueue to have better control of tasks
     task_queue = asyncio.Queue(loop=loop)
 
-    for index, task in enumerate(tasks, 1):
-        task_queue.put_nowait((index, task))
+    for index, ((x, y), color_code) in enumerate(tasks_dict.items(), 1):
+        task_queue.put_nowait((index, x, y, color_code))
 
     session_list = []
     with open(user_filename, "r") as fp:
@@ -113,19 +113,25 @@ def main():
         )
 
     try:
-        loop.run_forever()
+        loop.run_until_complete(asyncio.ensure_future(task_queue.join()))
+        # loop.run_forever()
         print("Finished all tasks, existing")
     except KeyboardInterrupt:
         print("Ctrl-c pressed, exiting")
-
+        up.close()
+    finally:
         # cancel all running tasks
         all_tasks = asyncio.Task.all_tasks()
         for task in all_tasks:
             task.cancel()
         # this line is necessary to avoid the "Task was destroyed but it is
-        # pending!" warning
-        loop.run_until_complete(asyncio.gather(*all_tasks))
-    finally:
+        # pending!" warning. The Task.cancel() method arranges for a
+        # CancelledError to be thrown in the next cycle of event loop, we need
+        # to give the event loop a chance to finish this.
+        try:
+            loop.run_until_complete(asyncio.gather(*all_tasks))
+        except asyncio.CancelledError:
+            pass
         up.close()
         connector.close()
         loop.stop()
