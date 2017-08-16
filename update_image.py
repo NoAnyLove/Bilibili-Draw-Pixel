@@ -44,12 +44,13 @@ MessageHeader = collections.namedtuple("MessageHeader",
 
 class UpdateImage(object):
     def __init__(self, *, lazy_threshold=60, task_queue=None,
-                 guard_region=None, loop=None):
+                 guard_region=None, guard_priority=None, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self.loop = loop
         self.task_queue = task_queue
         self.guard_region = guard_region
+        self.guard_priority = guard_priority
         self.full_update_callback = None
 
         self.width = 1280
@@ -58,6 +59,7 @@ class UpdateImage(object):
         self.last_update = None
         self.lazy_threshold = lazy_threshold
         self.timeout = 30
+        self.defualt_priority = 0
 
         self.session = aiohttp.ClientSession(loop=loop)
         self.async_lock = asyncio.Lock(loop=loop)
@@ -202,8 +204,12 @@ class UpdateImage(object):
                 if desired_color_code != color_code:
                     print("[DEBUG] (%d, %d) trigger the guard region" %
                           (x, y))
+
                     self.task_queue.put_nowait(
-                        (x, y, desired_color_code)
+                        (self.get_task_priority(x, y),
+                         x,
+                         y,
+                         desired_color_code)
                     )
 
         print("[DEBUG] update pixels in %.6f" % (time.clock() - start_time))
@@ -263,6 +269,12 @@ class UpdateImage(object):
             self.websocket_task.cancel()
         if self.session:
             self.session.close()
+
+    def get_task_priority(self, x, y):
+        if self.guard_priority is None:
+            return self.defualt_priority
+        else:
+            return self.guard_priority.get((x, y), self.defualt_priority)
 
 
 def convert_code_to_bytes(CODE_COLOR_TABLE, code_data, buf):

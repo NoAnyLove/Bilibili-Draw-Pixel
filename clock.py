@@ -52,11 +52,14 @@ class HourStage(enum.Enum):
 
 
 class ClockPlugin(object):
-    def __init__(self, loop, tasks_dict, up, task_queue):
+    def __init__(self, loop, tasks_dict, priority_dict, up, task_queue):
         self.loop = loop
         self.tasks_dict = tasks_dict
         self.up = up
         self.task_queue = task_queue
+        self.priority_dict = priority_dict
+
+        self.defualt_priority = -1
 
     def enable(self):
         wait_time = self.process_tasks()
@@ -65,11 +68,14 @@ class ClockPlugin(object):
     def process_tasks(self):
         clock_tasks, wait_time = self.generate_tasks()
         tasks_dict = self.tasks_dict
+        priority_dict = self.priority_dict
+        defualt_priority = self.defualt_priority
         # update original tasks_dict
         # TODO: need to check if this task is in tasks_dict
         for x, y, color_code in clock_tasks:
             print("[PROCESS] update task (%d, %d) %s" % (x, y, color_code))
             tasks_dict[(x, y)] = color_code
+            priority_dict[(x, y)] = defualt_priority
         return wait_time
 
     def start(self):
@@ -152,10 +158,17 @@ class ClockPlugin(object):
 
     async def work(self):
         task_queue = self.task_queue
+        default_priority = self.defualt_priority - 1
         while True:
             tasks, wait_time = self.generate_tasks()
-            for task in tasks:
-                print("[WORK] update task (%d, %d) %s" % task)
-                task_queue.put_nowait(task)
+            for x, y, color_code in tasks:
+                print("[WORK] update task pri:%d (%d, %d) %s" %
+                      (default_priority, x, y, color_code))
+                task_queue.put_nowait(
+                    (default_priority,
+                     x,
+                     y,
+                     color_code)
+                )
 
             await asyncio.sleep(wait_time)

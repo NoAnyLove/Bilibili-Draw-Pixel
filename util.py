@@ -200,3 +200,7 @@ def process_status_101(user_counters, worker_id, user_id, cost_time, workers):
               " uid: %s" %
               (datetime.now(), worker_id, user_id))
         workers[worker_id].cancel()
+
+
+def get_task_priority(priority_dict, x, y, default_priority=0):
+    return priority_dict.get((x, y), default_priority)
