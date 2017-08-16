@@ -33,6 +33,7 @@ async def task_main(worker_id, user_id, session, task_queue, up,
     while True:
         priority, x, y, color_code = await task_queue.get()
         while True:
+            success_flag = False
             # check if it is already the correct color_code
             current_rgb = up.get_image_pixel(x, y)
             current_color_code = RGB_CODE_TABLE[current_rgb]
@@ -66,6 +67,8 @@ async def task_main(worker_id, user_id, session, task_queue, up,
             # sleep for cool-down time
             if wait_time > 0:
                 await asyncio.sleep(wait_time)
+                if success_flag:
+                    break
 
 
 def main():
