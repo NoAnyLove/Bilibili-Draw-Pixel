@@ -9,8 +9,11 @@ import collections
 import aiohttp
 from update_image import UpdateImage
 from util import process_tasks, RGB_CODE_TABLE, CODE_RGB_TABLE,\
-    async_draw_pixel_with_requests, extract_cookies, process_status_101,\
-    get_task_priority
+    async_draw_pixel_with_requests, extract_cookies, process_status_101
+
+
+def get_task_priority(priority_dict, x, y, default_priority=0):
+    return priority_dict.get((x, y), default_priority)
 
 
 def find_all_polluted_pixels(tasks_dict, priority_dict, up):
