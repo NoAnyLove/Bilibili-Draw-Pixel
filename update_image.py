@@ -8,7 +8,6 @@ from datetime import datetime
 from PIL import Image
 from util import CODE_COLOR_TABLE, hex_to_rgb, CODE_RGB_TABLE
 
-
 __all__ = ["UpdateImage"]
 
 FULL_UPDATE_URL = r"http://api.live.bilibili.com/activity/v1/SummerDraw/bitmap"
@@ -202,6 +201,9 @@ class UpdateImage(object):
         for x, y, color_code in update_list:
             rgb = CODE_RGB_TABLE[color_code]
             self.set_image_pixel(x, y, rgb)
+            # ignore when guard_region is not used
+            if self.guard_region is None:
+                continue
             # check guard region
             if (x, y) in self.guard_region:
                 desired_color_code = self.guard_region[(x, y)]
