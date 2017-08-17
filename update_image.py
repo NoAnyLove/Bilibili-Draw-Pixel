@@ -11,15 +11,15 @@ from util import CODE_COLOR_TABLE, hex_to_rgb, CODE_RGB_TABLE
 
 __all__ = ["UpdateImage"]
 
-url = r"http://api.live.bilibili.com/activity/v1/SummerDraw/bitmap"
+FULL_UPDATE_URL = r"http://api.live.bilibili.com/activity/v1/SummerDraw/bitmap"
 
-token = bytearray([0x00, 0x00, 0x00, 0x27, 0x00, 0x10, 0x00, 0x01, 0x00, 0x00,
+TOKEN = bytearray([0x00, 0x00, 0x00, 0x27, 0x00, 0x10, 0x00, 0x01, 0x00, 0x00,
                    0x00, 0x07, 0x00, 0x00, 0x00, 0x01, 0x7B, 0x22, 0x75, 0x69,
                    0x64, 0x22, 0x3A, 0x30, 0x2C, 0x22, 0x72, 0x6F, 0x6F, 0x6D,
                    0x69, 0x64, 0x22, 0x3A, 0x35, 0x34, 0x34, 0x36, 0x7D])
 
-heart_beat = bytearray([0x00, 0x00, 0x00, 0x10, 0x00, 0x10, 0x00, 0x01, 0x00,
-                        0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01])
+HEART_BEAT_TOKEN = bytearray([0x00, 0x00, 0x00, 0x10, 0x00, 0x10, 0x00, 0x01,
+                              0x00,  0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01])
 
 """
 Protocol:
@@ -75,9 +75,9 @@ class UpdateImage(object):
     async def perform_update_image(self):
         """ Avoid invoking this method in different threads
         """
-        print("Downloading %s" % url)
+        print("Downloading %s" % FULL_UPDATE_URL)
         try:
-            r = await self.session.get(url, timeout=self.timeout)
+            r = await self.session.get(FULL_UPDATE_URL, timeout=self.timeout)
         except aiohttp.ClientConnectionError:
             print("Failed to connect to Bilibili.com")
             return
@@ -239,14 +239,14 @@ class UpdateImage(object):
     async def heart_beat(self):
         while True:
             print("[DEBUG] Sending heart beat")
-            await self.ws.send_bytes(heart_beat)
+            await self.ws.send_bytes(HEART_BEAT_TOKEN)
             await asyncio.sleep(30)
 
     async def start_websocket(self):
         async with self.session.ws_connect(
                 r"ws://broadcastlv.chat.bilibili.com:2244/sub") as ws:
             self.ws = ws
-            await ws.send_bytes(token)
+            await ws.send_bytes(TOKEN)
             self.heart_beat_task = asyncio.ensure_future(self.heart_beat())
             async for msg in ws:
                 if msg.type == aiohttp.WSMsgType.BINARY:
