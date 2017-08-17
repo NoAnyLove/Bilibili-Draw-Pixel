@@ -97,7 +97,8 @@ def main():
     task_queue = asyncio.PriorityQueue(loop=loop)
 
     # enable reactive guard
-    up = UpdateImage(task_queue=task_queue, guard_region=tasks_dict)
+    up = UpdateImage(task_queue=task_queue, guard_region=tasks_dict,
+                     loop=loop, connector=connector)
     up.full_update_callback = functools.partial(
         populate_tasks, tasks_dict, priority_dict, up, task_queue)
 

@@ -44,13 +44,18 @@ MessageHeader = collections.namedtuple("MessageHeader",
 
 class UpdateImage(object):
     def __init__(self, *, lazy_threshold=60, task_queue=None,
-                 guard_region=None, guard_priority=None, loop=None):
+                 guard_region=None, guard_priority=None, loop=None,
+                 connector=None):
         if loop is None:
             loop = asyncio.get_event_loop()
         self.loop = loop
         self.task_queue = task_queue
         self.guard_region = guard_region
         self.guard_priority = guard_priority
+        # reuse the same TCPConnector
+        self.connector = connector
+        self.session = aiohttp.ClientSession(loop=loop, connector=connector)
+
         self.full_update_callback = None
 
         self.width = 1280
@@ -61,7 +66,6 @@ class UpdateImage(object):
         self.timeout = 30
         self.defualt_priority = 0
 
-        self.session = aiohttp.ClientSession(loop=loop)
         self.async_lock = asyncio.Lock(loop=loop)
         self.enable_reconnect = True
         self.websocket_task = None
