@@ -4,9 +4,9 @@ import aiohttp
 import struct
 import time
 import json
-from datetime import datetime
 from PIL import Image
 from util import CODE_COLOR_TABLE, hex_to_rgb, CODE_RGB_TABLE
+import logger
 
 __all__ = ["UpdateImage"]
 
@@ -19,6 +19,8 @@ TOKEN = bytearray([0x00, 0x00, 0x00, 0x27, 0x00, 0x10, 0x00, 0x01, 0x00, 0x00,
 
 HEART_BEAT_TOKEN = bytearray([0x00, 0x00, 0x00, 0x10, 0x00, 0x10, 0x00, 0x01,
                               0x00,  0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01])
+
+LOGGER = logger.get_logger('update_image')
 
 """
 Protocol:
@@ -74,30 +76,30 @@ class UpdateImage(object):
     async def perform_update_image(self):
         """ Avoid invoking this method in different threads
         """
-        print("Downloading %s" % FULL_UPDATE_URL)
+        LOGGER.info("Downloading %s" % FULL_UPDATE_URL)
         try:
             r = await self.session.get(FULL_UPDATE_URL, timeout=self.timeout)
         except aiohttp.ClientConnectionError:
-            print("Failed to connect to Bilibili.com")
+            LOGGER.error("Failed to connect to Bilibili.com")
             return
         except aiohttp.ServerTimeoutError:
-            print("Connection timeout, failed to update image")
+            LOGGER.error("Connection timeout, failed to update image")
             return
         except Exception as e:
-            print("Error occurs: %s" % e)
+            LOGGER.error("Error occurs: %s", e)
             return
         try:
             data = await r.json()
             code_data = data["data"]["bitmap"]
         except Exception as e:
-            print("Failed to update image with error: %s" % e)
+            LOGGER.error("Failed to update image with error: %s" % e)
             return
 
         if not isinstance(code_data, str):
-            print("Incorrect code data: %s" % code_data)
+            LOGGER.error("Incorrect code data: %s" % code_data)
             return
         if len(code_data) != self.width * self.height:
-            print("Code data length mismatch: %d" % len(code_data))
+            LOGGER.error("Code data length mismatch: %d" % len(code_data))
 
         convert_code_to_bytes(CODE_COLOR_TABLE, code_data, self.image_buffer)
         self.last_update = time.time()
@@ -118,11 +120,11 @@ class UpdateImage(object):
                 ret = self.last_update
         end_time = time.time()
         if ret == -1:
-            print("update image in %.2fs" %
-                  (end_time - start_time))
+            LOGGER.debug("update image in %.2fs" %
+                         (end_time - start_time))
         else:
-            print("lazily updated %.2fs before" %
-                  (end_time - ret))
+            LOGGER.debug("lazily updated %.2fs before" %
+                         (end_time - ret))
         return ret
 
     def get_image_pixel(self, x, y):
@@ -138,7 +140,8 @@ class UpdateImage(object):
         try:
             img.save(filename, "GIF")
         except Exception as err:
-            print("Failed to save file %s with error: %s" % (filename, err))
+            LOGGER.error("Failed to save file %s with error: %s" %
+                         (filename, err))
 
     def get_task(self, func):
         task = func(self)
@@ -151,17 +154,18 @@ class UpdateImage(object):
                 message_header_struct.unpack_from(message)
             )
             if message_header.opcode == 3:
-                print("[INFO] online message")
+                LOGGER.debug("received online message")
             elif message_header.opcode == 5:
-                print("[INFO] receive %d bytes data for decoding" %
-                      len(message))
+                LOGGER.debug("received %d bytes message data" %
+                             len(message))
                 self.process_message(message)
             elif message_header.opcode == 8:
-                print("[INFO] receive heart beat request")
+                LOGGER.debug("received heart beat request")
             else:
-                print("[INFO] Unkown opcode %d" % message_header.opcode)
+                LOGGER.warning("received data with unknown opcode %d" %
+                               message_header.opcode)
         except Exception as e:
-            print("[ERROR] cannot decode message format: %s" % e)
+            LOGGER.warning("cannot decode message: %s" % e)
             return
 
     def process_message(self, message):
@@ -183,17 +187,18 @@ class UpdateImage(object):
                     color_code = message_object['data']['color']
                     update_list.append([x, y, color_code])
 
-                    print("@%s, cmd: %s, update (%d, %d) with color %s" %
-                          (datetime.now(), cmd, x, y, color_code))
+                    LOGGER.debug(
+                        "cmd: %s, update (%d, %d) with color %s" %
+                        (cmd, x, y, color_code))
                 else:
-                    print("@%s, Other message: %s" % (datetime.now(), data))
+                    LOGGER.debug("Other message: %s" %
+                                 (data))
 
                 offset += message_header.end_offset
 
-            except Exception as e:
-                print("Error occurs in process_message: %s" % e)
-                print("Error message(offset: %d): %s," % (offset, message))
-                print("Error message(bytearray): %r" % bytearray(message))
+            except Exception as err:
+                LOGGER.error("Error message (offset: %d): %s, err: %s" %
+                             (offset, message, err))
                 break
 
         # finally update the pixels in critical section
@@ -208,8 +213,8 @@ class UpdateImage(object):
             if (x, y) in self.guard_region:
                 desired_color_code = self.guard_region[(x, y)]
                 if desired_color_code != color_code:
-                    print("[DEBUG] (%d, %d) trigger the guard region" %
-                          (x, y))
+                    LOGGER.info("(%d, %d) %s triggers the guard region",
+                                x, y, color_code)
 
                     self.task_queue.put_nowait(
                         (self.get_task_priority(x, y),
@@ -218,13 +223,14 @@ class UpdateImage(object):
                          desired_color_code)
                     )
 
-        print("[DEBUG] update pixels in %.6f" % (time.clock() - start_time))
+        LOGGER.debug("process_message update pixels in %.6f" %
+                     (time.clock() - start_time))
 
     def on_error(self):
         """
         Generally speaking, on_close will be invoked after on_error
         """
-        print("[ERROR]@%s, on_error is called" % (datetime.now()))
+        LOGGER.error("on_error is called")
 
     def on_close(self):
         """
@@ -234,13 +240,13 @@ class UpdateImage(object):
 
         DO NOT join on that thread, that is the current thread
         """
-        print("[ERROR]@%s, on_close is called" % (datetime.now()))
-        print("[INFO] WebSocket is closed after running %.2f seconds" %
-              (time.time() - self.start_time))
+        LOGGER.error("on_close is called")
+        LOGGER.info("WebSocket is closed after running %.2f seconds" %
+                    (time.time() - self.start_time))
 
     async def heart_beat(self):
         while True:
-            print("[DEBUG] Sending heart beat")
+            LOGGER.debug("Sending heart beat")
             await self.ws.send_bytes(HEART_BEAT_TOKEN)
             await asyncio.sleep(30)
 
@@ -264,7 +270,7 @@ class UpdateImage(object):
 
         # force a full update and reconnect WebSocket
         if self.enable_reconnect:
-            print("[DEBUG] reconnect websocket")
+            LOGGER.info("reconnecting WebSocket")
             await self.perform_update_image()
             self.websocket_task = asyncio.ensure_future(self.start_websocket())
 

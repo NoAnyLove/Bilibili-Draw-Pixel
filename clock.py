@@ -2,7 +2,7 @@ import asyncio
 import enum
 import zlib
 import pendulum
-
+import logger
 from util import RGB_CODE_TABLE
 
 __all__ = ['ClockPlugin']
@@ -25,6 +25,9 @@ IMAGE_DATA = bytearray(zlib.decompress(
     b'\xf6pCr\x1bZ\x98\xe0\x0bIbDH\x0c7,\xe9\ro\xca\xc1\x99\xde\xf0\x86\x1bZ'
     b'j!5\xdc\xe8\x89\xe8[\x1e\x90\x0c\x00\x1e\xda\xb44'
 ))
+
+
+LOGGER = logger.get_logger("Plugin.Clock")
 
 
 @enum.unique
@@ -58,12 +61,13 @@ class ClockPlugin(object):
         self.up = up
         self.task_queue = task_queue
         self.priority_dict = priority_dict
-
         self.defualt_priority = -1
+        LOGGER.debug("Plugin Clock is loaded")
 
     def enable(self):
         wait_time = self.process_tasks()
         self.loop.call_later(wait_time, self.start)
+        LOGGER.info("Plugin Clock is started")
 
     def process_tasks(self):
         clock_tasks, wait_time = self.generate_tasks()
@@ -73,7 +77,8 @@ class ClockPlugin(object):
         # update original tasks_dict
         # TODO: need to check if this task is in tasks_dict
         for x, y, color_code in clock_tasks:
-            print("[PROCESS] update task (%d, %d) %s" % (x, y, color_code))
+            LOGGER.debug("Updating task (%d, %d) with %s" %
+                         (x, y, color_code))
             tasks_dict[(x, y)] = color_code
             priority_dict[(x, y)] = defualt_priority
         return wait_time
@@ -98,7 +103,7 @@ class ClockPlugin(object):
                 current_stage = stage
                 break
 
-        print("[CLOCK] @%s, stage %s" % (now, current_stage))
+        LOGGER.info("Clock is in stage %s" % (current_stage.name))
 
         index = (BASE_Y * IMG_LENGTH + BASE_X) * 3
         slice_image_data = IMAGE_DATA[index:index + LENGTH * 3]
@@ -145,8 +150,8 @@ class ClockPlugin(object):
             hour=hour, minute=next_stage.start, second=0)
 
         wait_time = (next_time - now).in_seconds()
-        print("[CLOCK] now=%s, next_time=%s, wait_time=%s" %
-              (now, next_time, wait_time))
+        LOGGER.debug("now=%s, next_time=%s, wait_time=%s" %
+                     (now, next_time, wait_time))
 
         # asyncio.sleep may not return exactly at the expected time. If we want
         # to wake up at 10:00:00, but actually wake up at 09:59:xx, it might
@@ -162,8 +167,8 @@ class ClockPlugin(object):
         while True:
             tasks, wait_time = self.generate_tasks()
             for x, y, color_code in tasks:
-                print("[WORK] update task pri:%d (%d, %d) %s" %
-                      (default_priority, x, y, color_code))
+                LOGGER.debug("Adding task pri:%d (%d, %d) %s" %
+                             (default_priority, x, y, color_code))
                 task_queue.put_nowait(
                     (default_priority,
                      x,

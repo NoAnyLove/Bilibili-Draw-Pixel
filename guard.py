@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import json
-from datetime import datetime
 import functools
 import sys
 import asyncio
@@ -10,6 +9,9 @@ import aiohttp
 from update_image import UpdateImage
 from util import process_tasks, RGB_CODE_TABLE, CODE_RGB_TABLE,\
     async_draw_pixel_with_requests, extract_cookies, process_status_101
+import logger
+
+LOGGER = logger.get_logger('guard')
 
 
 def get_task_priority(priority_dict, x, y, default_priority=0):
@@ -31,7 +33,7 @@ def find_all_polluted_pixels(tasks_dict, priority_dict, up):
 
 async def task_main(worker_id, user_id, session, task_queue, up,
                     user_counters, workers):
-    print("<worker-%s> start working" % worker_id)
+    LOGGER.info("<worker-%s> start working" % worker_id)
     wait_time = -1
     while True:
         priority, x, y, color_code = await task_queue.get()
@@ -42,30 +44,34 @@ async def task_main(worker_id, user_id, session, task_queue, up,
             current_color_code = RGB_CODE_TABLE[current_rgb]
             wait_time = -1
             if current_color_code == color_code:
-                print("@%s, <worker-%s> skip correct pixel (%d, %d)" %
-                      (datetime.now(), worker_id, x, y))
+                LOGGER.debug("<worker-%s> skip correct pixel (%d, %d)" %
+                             (worker_id, x, y))
                 break
 
             # output may be an empty string
-            print("<worker-%s> start to draw (%d, %d)" % (worker_id, x, y))
+            LOGGER.debug("<worker-%s> start to draw (%d, %d)" %
+                         (worker_id, x, y))
 
             status_code, wait_time, cost_time = \
                 await async_draw_pixel_with_requests(session, x, y, color_code)
 
             if status_code == 0:
-                print("@%s, <worker-%s> draw (%d, %d) pri:%s with %s, status:"
-                      " %d, cost %.2fs" %
-                      (datetime.now(), worker_id,
-                       x, y, priority, color_code, status_code, cost_time))
+                LOGGER.info(
+                    "<worker-%s> draw (%d, %d) pri:%s with %s, "
+                    "status: %d, cost %.2fs" %
+                    (worker_id,
+                     x, y, priority, color_code, status_code, cost_time))
+
                 success_flag = True
             elif status_code == -101:
                 process_status_101(user_counters, worker_id,
                                    user_id, cost_time, workers)
             else:
-                print("@%s, <worker-%s> draw (%d, %d) pri:%s, status: %s, "
-                      "retry after %ds, cost %.2fs"
-                      % (datetime.now(), worker_id, x, y, priority,
-                          status_code, wait_time, cost_time))
+                LOGGER.info(
+                    "<worker-%s> draw (%d, %d) pri:%s, status: %s, "
+                    "retry after %ds, cost %.2fs"
+                    % (worker_id, x, y, priority,
+                       status_code, wait_time, cost_time))
 
             # sleep for cool-down time
             if wait_time > 0:
@@ -128,7 +134,7 @@ def main():
                     connector_owner=False),
             ))
 
-    print('[INFO] loaded %d accounts' % len(session_list))
+    LOGGER.critical('loaded %d accounts' % len(session_list))
 
     loop.run_until_complete(up.perform_update_image())
     # TODO
@@ -145,9 +151,9 @@ def main():
 
     try:
         loop.run_forever()
-        print("Finished all tasks, existing")
+        LOGGER.critical("Finished all tasks, existing")
     except KeyboardInterrupt:
-        print("Ctrl-c pressed, exiting")
+        LOGGER.critical("Ctrl-c pressed, exiting")
         # need to close UpdateImage first to avoid the "Task was destroyed
         # but it is pending!" warning at perform_update_image.py:247
         up.close()

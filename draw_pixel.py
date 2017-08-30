@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 
 import json
-from datetime import datetime
 import sys
 import asyncio
 import collections
 from update_image import UpdateImage
+import logger
 from util import process_tasks, RGB_CODE_TABLE,\
     async_draw_pixel_with_requests, extract_cookies, process_status_101
 import aiohttp
 
 
+LOGGER = logger.get_logger('guard')
+
+
 async def task_main(worker_id, user_id, session, task_queue, total, up,
                     user_counters, workers):
-    print("<worker-%s> start working" % worker_id)
+    LOGGER.info("<worker-%s> start working" % worker_id)
     wait_time = -1
     while True:
         index, x, y, color_code = await task_queue.get()
@@ -23,31 +26,32 @@ async def task_main(worker_id, user_id, session, task_queue, total, up,
             current_color_code = RGB_CODE_TABLE[current_rgb]
             wait_time = -1
             if current_color_code == color_code:
-                print("[%d/%d] @%s, <worker-%s> skip correct pixel (%d, %d)" %
-                      (index, total, datetime.now(), worker_id, x, y))
+                LOGGER.debug("[%d/%d] <worker-%s> skip correct pixel (%d, %d)" %
+                             (index, total, worker_id, x, y))
                 task_queue.task_done()
                 break
 
             # output may be an empty string
-            print("<worker-%s> start to draw (%d, %d)" % (worker_id, x, y))
+            LOGGER.debug("<worker-%s> start to draw (%d, %d)" %
+                         (worker_id, x, y))
 
             status_code, wait_time, cost_time = \
                 await async_draw_pixel_with_requests(session, x, y, color_code)
 
             if status_code == 0:
-                print("[%d/%d] @%s, <worker-%s> draw (%d, %d) with %s, status:"
-                      " %d, cost %.2fs" %
-                      (index, total, datetime.now(), worker_id,
-                       x, y, color_code, status_code, cost_time))
+                LOGGER.info("[%d/%d] <worker-%s> draw (%d, %d) with %s, status:"
+                            " %d, cost %.2fs" %
+                            (index, total, worker_id,
+                             x, y, color_code, status_code, cost_time))
                 task_queue.task_done()
             elif status_code == -101:
                 process_status_101(user_counters, worker_id,
                                    user_id, cost_time, workers)
             else:
-                print("[%d/%d] @%s, <worker-%s> draw (%d, %d), status: %s, "
-                      "retry after %ds, cost %.2fs"
-                      % (index, total, datetime.now(), worker_id, x, y,
-                          status_code, wait_time, cost_time))
+                LOGGER.info("[%d/%d] <worker-%s> draw (%d, %d), status: %s, "
+                            "retry after %ds, cost %.2fs"
+                            % (index, total, worker_id, x, y,
+                               status_code, wait_time, cost_time))
 
             # sleep for cool-down time
             if wait_time > 0:
@@ -98,7 +102,7 @@ def main():
                     connector_owner=False),
             ))
 
-    print('[INFO] loaded %d accounts' % len(session_list))
+    LOGGER.critical('[INFO] loaded %d accounts' % len(session_list))
 
     up = UpdateImage()
     loop.run_until_complete(up.perform_update_image())
@@ -115,7 +119,7 @@ def main():
     try:
         loop.run_until_complete(asyncio.ensure_future(task_queue.join()))
         # loop.run_forever()
-        print("Finished all tasks, existing")
+        LOGGER.critical("Finished all tasks, existing")
     except KeyboardInterrupt:
         print("Ctrl-c pressed, exiting")
         up.close()
