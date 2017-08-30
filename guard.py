@@ -109,10 +109,10 @@ def main():
         populate_tasks, tasks_dict, priority_dict, up, task_queue)
 
     # Load plugin clock
-    import clock
-    clock_plugin = clock.ClockPlugin(
-        loop, tasks_dict, priority_dict, up, task_queue)
-    clock_plugin.enable()
+    # import clock
+    # clock_plugin = clock.ClockPlugin(
+    #    loop, tasks_dict, priority_dict, up, task_queue)
+    # clock_plugin.enable()
 
     session_list = []
     with open(user_filename, "r") as fp:
