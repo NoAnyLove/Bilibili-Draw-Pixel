@@ -26,8 +26,9 @@ async def task_main(worker_id, user_id, session, task_queue, total, up,
             current_color_code = RGB_CODE_TABLE[current_rgb]
             wait_time = -1
             if current_color_code == color_code:
-                LOGGER.debug("[%d/%d] <worker-%s> skip correct pixel (%d, %d)" %
-                             (index, total, worker_id, x, y))
+                LOGGER.debug(
+                    "[%d/%d] <worker-%s> skip correct pixel (%d, %d)" %
+                    (index, total, worker_id, x, y))
                 task_queue.task_done()
                 break
 
@@ -39,10 +40,10 @@ async def task_main(worker_id, user_id, session, task_queue, total, up,
                 await async_draw_pixel_with_requests(session, x, y, color_code)
 
             if status_code == 0:
-                LOGGER.info("[%d/%d] <worker-%s> draw (%d, %d) with %s, status:"
-                            " %d, cost %.2fs" %
-                            (index, total, worker_id,
-                             x, y, color_code, status_code, cost_time))
+                LOGGER.info(
+                    "[%d/%d] <worker-%s> draw (%d, %d) with %s, status:"
+                    " %d, cost %.2fs" %
+                    (index, total, worker_id, x, y, color_code, status_code, cost_time))
                 task_queue.task_done()
             elif status_code == -101:
                 process_status_101(user_counters, worker_id,
